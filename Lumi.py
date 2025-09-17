@@ -44,8 +44,12 @@ WEBHOOK_SSL_KEY = os.getenv("WEBHOOK_SSL_KEY", "").strip() or None
 
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-70b-instruct")
-OPENROUTER_VISION_MODEL = os.getenv("OPENROUTER_VISION_MODEL", "").strip()
-OPENROUTER_TRANSCRIBE_MODEL = os.getenv("OPENROUTER_TRANSCRIBE_MODEL", "").strip()
+OPENROUTER_VISION_MODEL = os.getenv(
+    "OPENROUTER_VISION_MODEL", "meta-llama/llama-3.2-11b-vision-instruct"
+).strip()
+OPENROUTER_TRANSCRIBE_MODEL = os.getenv(
+    "OPENROUTER_TRANSCRIBE_MODEL", "openai/gpt-4o-mini-transcribe"
+).strip()
 
 CRYPTO_API = os.getenv("CRYPTO_PAY_API_TOKEN", "").strip()
 
@@ -185,8 +189,16 @@ if DEFAULT_LANGUAGE not in LANGUAGES:
 
 
 VISION_PROMPTS = {
-    "ru": "Опиши изображение коротко и эмпатично, без оценочных суждений.",
-    "en": "Describe the image briefly and empathetically without judgement.",
+    "ru": (
+        "Опиши изображение коротко и эмпатично. Перечисли основные объекты и детали,"
+        " которые могут быть важны собеседнику. Если на изображении есть читаемый текст,"
+        " перепиши его без изменений."
+    ),
+    "en": (
+        "Give a brief, empathetic description of the image. Mention the key objects and"
+        " details that might matter to the user. If you can read any text in the picture,"
+        " quote it verbatim."
+    ),
 }
 
 SWEAR_PATTERNS = [
