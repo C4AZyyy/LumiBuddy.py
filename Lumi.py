@@ -9,17 +9,29 @@ from typing import Dict, List, Optional
 
 import requests
 import telebot
-from dotenv import load_dotenv
 from telebot import types
+from dotenv import load_dotenv
+
+def language_preset(code: str) -> dict:
+    return LANGUAGE.get(code, LANGUAGE[DEFAULT_LANGUAGE])
+
 
 # ================== ЛОГИ ==================
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 telebot.logger.setLevel(logging.INFO)
 
 # ================== КОНФИГ ==================
+# ================== КОНФИГ ==================
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
-
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+# ... остальные переменные ...
+
+# <<< ВАЖНО: ПРОВЕРКА ТОКЕНА И ИНИЦИАЛИЗАЦИЯ БОТА ДО ДЕКОРАТОРОВ >>>
+if not BOT_TOKEN:
+    raise RuntimeError("BOT_TOKEN пуст. Заполни .env")
+
+bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
+
 TRIAL_MESSAGES = int(os.getenv("TRIAL_MESSAGES", "75"))
 SESSION_TTL_HOURS = int(os.getenv("SESSION_TTL_HOURS", "24"))
 STATE_FILE = os.getenv("STATE_FILE", "users.json")
@@ -38,6 +50,25 @@ OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-70b-instr
 OPENROUTER_VISION_MODEL = os.getenv("OPENROUTER_VISION_MODEL", "")
 OPENROUTER_TRANSCRIBE_MODEL = os.getenv("OPENROUTER_TRANSCRIBE_MODEL", "")
 CRYPTO_API = os.getenv("CRYPTO_PAY_API_TOKEN", "")
+DEFAULT_LANGUAGE = "ru"
+LANGUAGE = {
+    "ru": {
+        "title": "Русский",
+        "system": (
+            "Ты добрый, понимающий и внимательный собеседник по имени Lumi. "
+            "Задаёшь мягкие уточняющие вопросы, поддерживаешь и избегaешь прямолинейности. "
+            "Отвечай по-русски, сохраняя тёплый и поддерживающий тон."
+        ),
+    },
+    "en": {
+        "title": "English",
+        "system": (
+            "You are Lumi, a kind, understanding, and attentive companion. "
+            "Ask gentle follow-up questions, offer support, and avoid blunt language. "
+            "Respond in warm, encouraging English."
+        ),
+    },
+}
 FALLBACK = {
     "basic": os.getenv("CRYPTO_FALLBACK_BASIC", ""),
     "comfort": os.getenv("CRYPTO_FALLBACK_COMFORT", ""),
@@ -371,12 +402,12 @@ def U(chat_id: int) -> dict:
         "accepted_at": None,
         "free_used": 0,
         "premium_until": None,
-        "lang": DEFAULT_LANGUAGE,
-        "lang_confirmed": False,
-        "history": [],
-        "last_support": None,
+        "language": DEFAULT_LANGUAGE,
     })
-    return users[cid]
+    info = users[cid]
+    if "language" not in info:
+        info["language"] = DEFAULT_LANGUAGE
+    return info
 
 
 def get_language(chat_id: int) -> str:
@@ -484,13 +515,13 @@ def mark_support_sent(chat_id: int):
     save_state()
 
     # ================== OPENROUTER ==================
+    def language_preset(code: str) -> dict:
+        return LANGUAGE.get(code, LANGUAGE[DEFAULT_LANGUAGE])
 
+    def ask_gpt(prompt: str, language: str = DEFAULT_LANGUAGE) -> str:
+        preset = language_preset(language)
+        sysmsg = preset["system"]
 
-def ask_gpt(prompt: str) -> str:
-    sysmsg = (
-        "Ты добрый, понимающий и внимательный собеседник по имени Lumi. "
-        "Задаёшь мягкие уточняющие вопросы, поддерживаешь и избегаешь прямолинейности."
-    )
     if not OPENROUTER_KEY:
         return "API ключ OpenRouter не настроен. Проверь .env"
 
@@ -527,6 +558,52 @@ def ask_gpt(prompt: str) -> str:
     except Exception as e:
         logging.exception("OpenRouter parse error: %r | body=%s", e, resp.text[:500])
         return "Сейчас мне сложно ответить. Попробуй ещё раз."
+
+
+def describe_image(image_url: str, prompt: str | None = None) -> str | None:
+    """Request a caption for the provided image using OpenRouter."""
+    if not OPENROUTER_KEY:
+        logging.warning("Image describe requested but OpenRouter key is missing.")
+        return None
+
+    message_content: list[dict] = []
+    if prompt:
+        message_content.append({"type": "text", "text": prompt})
+    message_content.append({"type": "image_url", "image_url": {"url": image_url}})
+
+    try:
+        r = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "gpt-4.1-mini",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Ты помогаешь мягко и внимательно описывать изображения, "
+                            "подмечаешь детали и сохраняешь поддерживающий тон."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": message_content,
+                    },
+                ],
+                "temperature": 0.5,
+                "max_tokens": 300,
+            },
+            timeout=20,
+        )
+        r.raise_for_status()
+        data = r.json()
+        return data["choices"][0]["message"]["content"].strip()
+    except Exception as exc:
+        logging.exception("Image describe failed: %r", exc)
+        return None
 
 
 # ================== ОПЛАТА ==================
@@ -644,6 +721,15 @@ def plans_text(chat_id: int) -> str:
     return "\n\n".join(lines)
 
 
+def language_keyboard(active: str | None = None) -> types.InlineKeyboardMarkup:
+    markup = types.InlineKeyboardMarkup()
+    for code, preset in LANGUAGE.items():
+        title = preset["title"]
+        label = f"✅ {title}" if code == active else title
+        markup.add(types.InlineKeyboardButton(text=label, callback_data=f"lang:{code}"))
+    return markup
+
+
 def send_supportive_phrase(chat_id: int):
     lang = get_language(chat_id)
     phrases = LANGUAGES.get(lang, LANGUAGES[DEFAULT_LANGUAGE]).get("supportive", [])
@@ -679,7 +765,7 @@ def ensure_ready(message) -> bool:
         send_language_choice(message.chat.id)
         return False
     if not policy_is_shown(message.chat.id):
-        show_policy_once(message)
+        show_policy_once_chat(message.chat.id)
         return False
     return True
 
@@ -739,11 +825,136 @@ def start_webhook():
     app.run(host=WEBHOOK_HOST, port=WEBHOOK_PORT, ssl_context=ssl_context)
 
 
-# ================== БОТ ==================
-if not BOT_TOKEN:
-    raise RuntimeError("BOT_TOKEN пуст. Заполни .env")
+@bot.message_handler(commands=['buy'])
+def cmd_buy(message):
+    bot.send_message(message.chat.id, plans_text(message.chat.id))
 
-bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
+
+@bot.message_handler(commands=['language'])
+def cmd_language(message):
+    current = get_language(message.chat.id)
+    kb = types.InlineKeyboardMarkup()
+    for code, data in LANGUAGES.items():
+        label = f"✅ {data['name']}" if code == current else data['name']
+        kb.add(types.InlineKeyboardButton(label, callback_data=f"lang:{code}"))
+    bot.send_message(
+        message.chat.id,
+        f"Текущий язык: {LANGUAGES.get(current, LANGUAGES['ru'])['name']}. Выбери язык:",
+        reply_markup=kb
+    )
+
+
+
+@bot.message_handler(commands=['grant'])
+def cmd_grant(message):
+    parts = message.text.split()
+    days = 30
+    if len(parts) >= 2:
+        if parts[1] in PLANS:
+            days = PLANS[parts[1]]["days"]
+        else:
+            try:
+                days = int(parts[1])
+            except Exception:
+                days = 30
+    grant_premium(message.chat.id, days)
+    bot.reply_to(message, lang_text(message.chat.id, "premium_granted", days=days))
+
+
+
+@bot.message_handler(content_types=['text'])
+def any_text(message):
+    if not ensure_ready(message):
+        return
+
+    info = U(message.chat.id)
+    text = (message.text or "").strip()
+    if not text:
+        bot.send_message(message.chat.id, lang_text(message.chat.id, "ask_topic"))
+        return
+    if contains_patterns(text, SWEAR_PATTERNS):
+        bot.send_message(message.chat.id, lang_text(message.chat.id, "insult"))
+        return
+    if contains_patterns(text, SENSITIVE_PATTERNS):
+        bot.send_message(message.chat.id, lang_text(message.chat.id, "sensitive"))
+        return
+
+    is_premium = has_premium(message.chat.id)
+    rest = None
+    if not is_premium:
+        next_count = int(info.get("free_used", 0)) + 1
+        info["free_used"] = next_count
+        if next_count > TRIAL_MESSAGES:
+            save_state()
+            bot.send_message(message.chat.id, lang_text(message.chat.id, "free_end"))
+            bot.send_message(message.chat.id, plans_text(message.chat.id))
+            return
+        rest = TRIAL_MESSAGES - next_count
+
+    history = info.get("history") or []
+    lang = info.get("language", DEFAULT_LANGUAGE)
+    reply = ask_gpt(text, language=lang)
+    history.append({"role": "user", "content": text})
+    history.append({"role": "assistant", "content": reply})
+    if len(history) > HISTORY_LIMIT * 2:
+        history = history[-HISTORY_LIMIT * 2:]
+    info["history"] = history
+    save_state()
+    bot.send_message(message.chat.id, reply)
+
+    if is_premium:
+        if should_send_support(message.chat.id):
+            send_supportive_phrase(message.chat.id)
+    elif rest is not None and rest in REMIND_AT:
+        bot.send_message(message.chat.id, lang_text(message.chat.id, "trial_left", rest=rest))
+
+
+
+
+def show_policy_once_chat(chat_id: int):
+    if not policy_is_shown(chat_id):
+        send_policy(chat_id)
+    else:
+        bot.send_message(chat_id, lang_text(chat_id, "policy_repeat"))
+
+
+
+@bot.callback_query_handler(func=lambda c: c.data and c.data.startswith("lang:"))
+def cb_language(c):
+    # 1) ACK немедленно — это останавливает «крутилку»
+    try:
+        bot.answer_callback_query(c.id)
+    except Exception:
+        pass
+
+    # 2) Обновляем язык
+    lang = c.data.split(":", 1)[1].lower()
+    chat_id = c.message.chat.id if c.message else c.from_user.id
+    set_language(chat_id, lang)
+    mark_language_confirmed(chat_id)
+
+    # 3) Прячем клавиатуру под сообщением
+    if c.message:
+        try:
+            bot.edit_message_reply_markup(chat_id, c.message.message_id, reply_markup=None)
+        except Exception:
+            pass
+
+    # 4) Продолжаем онбординг
+    confirm = LANGUAGES.get(lang, LANGUAGES[DEFAULT_LANGUAGE]).get("language_confirm")
+    if confirm:
+        bot.send_message(chat_id, confirm)
+    bot.send_message(chat_id, greeting_text(chat_id))
+    show_policy_once_chat(chat_id)
+
+
+# (необязательный catch-all, но полезно иметь)
+@bot.callback_query_handler(func=lambda c: True)
+def cb_fallback(c):
+    try:
+        bot.answer_callback_query(c.id)
+    except Exception:
+        pass
 
 
 @bot.message_handler(commands=['start'])
@@ -765,51 +976,11 @@ def cmd_start(message):
         bot.send_message(message.chat.id, greeting_text(message.chat.id))
         send_policy(message.chat.id)
 
-    @bot.callback_query_handler(func=lambda call: call.data and call.data.startswith("lang:"))
-    def cb_language(call):
-        lang = call.data.split(":", 1)[1]
-        chat_id = call.message.chat.id if call.message else call.from_user.id
-        set_language(chat_id, lang)
-        mark_language_confirmed(chat_id)
-        bot.answer_callback_query(call.id, text=LANGUAGES[lang]["name"] if lang in LANGUAGES else "")
-        if call.message:
-            try:
-                bot.edit_message_reply_markup(chat_id, call.message.message_id, reply_markup=None)
-            except Exception:
-                pass
-        confirm = LANGUAGES.get(get_language(chat_id),
-                                LANGUAGES.get(DEFAULT_LANGUAGE) or next(iter(LANGUAGES.values()))).get(
-            "language_confirm")
-        if confirm:
-            bot.send_message(chat_id, confirm)
-        bot.send_message(chat_id, greeting_text(chat_id))
-        send_policy(chat_id)
-
     def show_policy_once(message):
         if not policy_is_shown(message.chat.id):
             send_policy(message.chat.id)
         else:
             bot.send_message(message.chat.id, lang_text(message.chat.id, "policy_repeat"))
-
-        @bot.message_handler(commands=['buy'])
-        def cmd_buy(message):
-            bot.send_message(message.chat.id, plans_text(message.chat.id))
-
-        @bot.message_handler(commands=['grant'])
-        def cmd_grant(message):
-            parts = message.text.split()
-
-    days = 30
-    if len(parts) >= 2:
-        if parts[1] in PLANS:
-            days = PLANS[parts[1]]["days"]
-        else:
-            try:
-                days = int(parts[1])
-            except Exception:
-                days = 30
-    grant_premium(message.chat.id, days)
-    bot.reply_to(message, lang_text(message.chat.id, "premium_granted", days=days))
 
 
 @bot.message_handler(commands=['policy'])
@@ -840,51 +1011,6 @@ def cmd_diag(message):
             premium="yes" if has_premium(message.chat.id) else "no"
         )
     )
-
-    @bot.message_handler(content_types=['text'])
-    def any_text(message):
-        if not ensure_ready(message):
-            return
-        info = U(message.chat.id)
-
-    text = (message.text or "").strip()
-    if not text:
-        bot.send_message(message.chat.id, lang_text(message.chat.id, "ask_topic"))
-        return
-    if contains_patterns(text, SWEAR_PATTERNS):
-        bot.send_message(message.chat.id, lang_text(message.chat.id, "insult"))
-        return
-    if contains_patterns(text, SENSITIVE_PATTERNS):
-        bot.send_message(message.chat.id, lang_text(message.chat.id, "sensitive"))
-        return
-
-    is_premium = has_premium(message.chat.id)
-    rest = None
-    if not is_premium:
-        next_count = int(info.get("free_used", 0)) + 1
-        info["free_used"] = next_count
-        if next_count > TRIAL_MESSAGES:
-            save_state()
-            bot.send_message(message.chat.id, lang_text(message.chat.id, "free_end"))
-            bot.send_message(message.chat.id, plans_text(message.chat.id))
-            return
-        rest = TRIAL_MESSAGES - next_count
-
-    history = info.get("history") or []
-    reply = ask_gpt(message.chat.id, text, history)
-    history.append({"role": "user", "content": text})
-    history.append({"role": "assistant", "content": reply})
-    if len(history) > HISTORY_LIMIT * 2:
-        history = history[-HISTORY_LIMIT * 2:]
-    info["history"] = history
-    save_state()
-    bot.send_message(message.chat.id, reply)
-
-    if is_premium:
-        if should_send_support(message.chat.id):
-            send_supportive_phrase(message.chat.id)
-    elif rest is not None and rest in REMIND_AT:
-        bot.send_message(message.chat.id, lang_text(message.chat.id, "trial_left", rest=rest))
 
 
 @bot.message_handler(content_types=['voice', 'audio'])
