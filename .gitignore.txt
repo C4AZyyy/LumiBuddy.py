@@ -1,0 +1,16 @@
+# Python / venv
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# IDE
+.idea/
+.vscode/
+
+# Env & локальные данные
+.env
+users.json
+*.db
+*.sqlite3
