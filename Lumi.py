@@ -514,13 +514,11 @@ def mark_support_sent(chat_id: int):
     info["last_support"] = datetime.now(timezone.utc).isoformat()
     save_state()
 
-    # ================== OPENROUTER ==================
-    def language_preset(code: str) -> dict:
-        return LANGUAGE.get(code, LANGUAGE[DEFAULT_LANGUAGE])
 
-    def ask_gpt(prompt: str, language: str = DEFAULT_LANGUAGE) -> str:
-        preset = language_preset(language)
-        sysmsg = preset["system"]
+# ================== OPENROUTER ==================
+def ask_gpt(prompt: str, language: str = DEFAULT_LANGUAGE) -> str:
+    preset = language_preset(language)
+    sysmsg = preset["system"]
 
     if not OPENROUTER_KEY:
         return "API ключ OpenRouter не настроен. Проверь .env"
