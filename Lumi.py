@@ -1,25 +1,32 @@
 # Lumi.py
 """Telegram companion bot with OpenRouter integration."""
 
+# --- отключаем прокси на уровне процесса (делаем это ДО импортов requests/telebot) ---
+import os
+for _v in ("HTTP_PROXY","HTTPS_PROXY","ALL_PROXY","http_proxy","https_proxy","all_proxy"):
+    os.environ.pop(_v, None)
+os.environ["NO_PROXY"] = "api.telegram.org,telegram.org,*"
+
+# --- базовые импорты ---
 import json
 import logging
-import os
 import random
 import re
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Pattern
 
+# --- сети/бот ---
 import requests
-import telebot
-from dotenv import load_dotenv
-from telebot import types
+requests.sessions.Session.trust_env = False  # игнорировать прокси из окружения
 
+import telebot
+from telebot import types, apihelper
+from dotenv import load_dotenv
 
 # ================== ЛОГИ ==================
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 telebot.logger.setLevel(logging.INFO)
-
 
 # ================== КОНФИГ ==================
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
@@ -29,6 +36,11 @@ if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN пуст. Заполни .env")
 
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
+
+# явное "без прокси" для pyTelegramBotAPI
+apihelper.proxy = {"http": None, "https": None}
+
+
 
 TRIAL_MESSAGES = int(os.getenv("TRIAL_MESSAGES", "75"))
 SESSION_TTL_HOURS = int(os.getenv("SESSION_TTL_HOURS", "24"))
@@ -59,7 +71,6 @@ REMIND_AT = {5, 3, 1}
 ALWAYS_PREMIUM = {c.strip() for c in os.getenv("PERMANENT_ACCESS", "").split(",") if c.strip()}
 ADMIN_IDS = {c.strip() for c in os.getenv("ADMIN_IDS", "").split(",") if c.strip()}
 BEST_PLAN_CODE = "warm"
-
 
 LANGUAGES: Dict[str, Dict[str, object]] = {
     "ru": {
@@ -248,11 +259,8 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
     },
 }
 
-
-
 if DEFAULT_LANGUAGE not in LANGUAGES:
     DEFAULT_LANGUAGE = "ru"
-
 
 PLAN_BEHAVIOR: Dict[str, Dict[str, object]] = {
     "free": {"history_limit": 8, "max_tokens": 240, "temperature": 0.55, "support_interval": None},
@@ -316,7 +324,6 @@ PLANS = {
         },
     },
 }
-
 
 FREE_PLAN_NAMES = {"ru": "БЕСПЛАТНО", "en": "FREE"}
 FREE_PLAN_PERKS = {
@@ -415,7 +422,6 @@ FALLBACK = {
     "comfort": os.getenv("CRYPTO_FALLBACK_COMFORT", ""),
     "warm": os.getenv("CRYPTO_FALLBACK_WARM", ""),
 }
-
 
 # ================== СОСТОЯНИЕ ==================
 users: Dict[str, Dict[str, object]] = {}
@@ -608,7 +614,7 @@ def resolve_user_identifier(value: str) -> Optional[int]:
 
 
 def contains_patterns(
-    text: str, patterns: List[str], regexes: Optional[List[Pattern[str]]] = None
+        text: str, patterns: List[str], regexes: Optional[List[Pattern[str]]] = None
 ) -> bool:
     if not text:
         return False
@@ -656,11 +662,11 @@ def mark_support_sent(chat_id: int) -> None:
 
 # ================== OPENROUTER ==================
 def ask_gpt(
-    prompt: str,
-    *,
-    language: Optional[str] = None,
-    history: Optional[List[Dict[str, str]]] = None,
-    plan: str = "free",
+        prompt: str,
+        *,
+        language: Optional[str] = None,
+        history: Optional[List[Dict[str, str]]] = None,
+        plan: str = "free",
 ) -> str:
     lang = (language or DEFAULT_LANGUAGE).lower()
     preset = language_preset(lang)
@@ -681,7 +687,7 @@ def ask_gpt(
 
     messages: List[Dict[str, str]] = [{"role": "system", "content": system_message}]
     if history:
-        messages.extend(history[-history_limit * 2 :])
+        messages.extend(history[-history_limit * 2:])
     messages.append({"role": "user", "content": prompt})
 
     try:
@@ -1165,7 +1171,7 @@ def any_text(message):
     if history_limit <= 0:
         history_limit = DEFAULT_HISTORY_LIMIT
     if len(history) > history_limit * 2:
-        history = history[-history_limit * 2 :]
+        history = history[-history_limit * 2:]
     info["history"] = history
     save_state()
     bot.send_message(message.chat.id, reply)
@@ -1229,3 +1235,8 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+if __name__ == "__main__" and False:  # поменяй на True, если хочешь разово проверить
+    r = requests.get("https://api.telegram.org", timeout=10,
+                     proxies={"http": None, "https": None})
+    print("Telegram API reachable:", r.status_code)
