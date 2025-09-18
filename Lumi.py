@@ -22,6 +22,7 @@ requests.sessions.Session.trust_env = False  # игнорировать прок
 
 import telebot
 from telebot import types, apihelper
+apihelper.proxy = {"http": None, "https": None}
 from dotenv import load_dotenv
 
 # ================== ЛОГИ ==================
@@ -37,8 +38,7 @@ if not BOT_TOKEN:
 
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
 
-# явное "без прокси" для pyTelegramBotAPI
-apihelper.proxy = {"http": None, "https": None}
+
 
 
 
