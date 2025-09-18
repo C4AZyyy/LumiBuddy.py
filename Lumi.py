@@ -779,73 +779,88 @@ def download_file(file_id: str) -> Optional[tuple[bytes, str]]:
 def transcribe_audio(chat_id: int, file_bytes: bytes, filename: str) -> Optional[str]:
     if not (OPENAI_KEY and OPENAI_TRANSCRIBE_MODEL):
         return None
+
+    # У Telegram voice обычно .oga/.ogg (Opus). Видео нередко .mp4
+    mime, _ = mimetypes.guess_type(filename)
+    ext = (filename or "").lower()
+    if ext.endswith(".oga") or ext.endswith(".ogg"):
+        mime = "audio/ogg"
+    if not mime:
+        mime = "application/octet-stream"
+
     try:
-        response = requests.post(
+        r = requests.post(
             "https://api.openai.com/v1/audio/transcriptions",
             headers={"Authorization": f"Bearer {OPENAI_KEY}"},
+            files={"file": (filename, file_bytes, mime)},
             data={"model": OPENAI_TRANSCRIBE_MODEL, "language": get_language(chat_id)},
-            files={"file": (filename, file_bytes)},
-            timeout=60,
+            timeout=120,
         )
-        response.raise_for_status()
-        data = response.json()
-        text = data.get("text") or data.get("data") or ""
-        if isinstance(text, str):
-            return text.strip()
+        if r.status_code != 200:
+            logging.error("ASR HTTP %s: %s", r.status_code, r.text[:2000])
+            return None
+        j = r.json()
+        text = (j.get("text") or "").strip()
+        if not text:
+            logging.error("ASR empty text: %s", j)
+            return None
+        return text
     except Exception as exc:
-        logging.exception("Audio transcription failed: %r", exc)
-    return None
+        logging.exception("ASR error: %r", exc)
+        return None
 
 
 def describe_image(chat_id: int, file_bytes: bytes, filename: str) -> Optional[str]:
     if not (OPENAI_KEY and OPENAI_VISION_MODEL):
         return None
+
     prompt_text = VISION_PROMPTS.get(get_language(chat_id), VISION_PROMPTS[DEFAULT_LANGUAGE])
+
+    mime, _ = mimetypes.guess_type(filename)
+    if not mime or not mime.startswith("image/"):
+        mime = "image/jpeg"
+
     try:
         image_b64 = base64.b64encode(file_bytes).decode("ascii")
     except Exception as exc:
         logging.exception("Image base64 encode failed: %r", exc)
         return None
 
-    mime, _ = mimetypes.guess_type(filename)
-    if not mime:
-        mime = "image/png"
-
-    messages = [
-        {
+    payload = {
+        "model": OPENAI_VISION_MODEL,  # gpt-4o
+        "messages": [{
             "role": "user",
             "content": [
                 {"type": "text", "text": prompt_text},
                 {
                     "type": "image_url",
-                    "image_url": {"url": f"data:{mime};base64,{image_b64}"},
-                },
+                    "image_url": {"url": f"data:{mime};base64,{image_b64}", "detail": "high"}
+                }
             ],
-        }
-    ]
-
-    payload = {
-        "model": OPENAI_VISION_MODEL,
-        "messages": messages,
-        "max_tokens": 600,
+        }],
+        "max_tokens": 700,
     }
 
     try:
-        vision_response = requests.post(
+        r = requests.post(
             "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENAI_KEY}",
-                "Content-Type": "application/json",
-            },
+            headers={"Authorization": f"Bearer {OPENAI_KEY}", "Content-Type": "application/json"},
             json=payload,
-            timeout=60,
+            timeout=120,
         )
-        vision_response.raise_for_status()
-        data = vision_response.json()
-        return data["choices"][0]["message"]["content"].strip()
+        if r.status_code != 200:
+            logging.error("Vision HTTP %s: %s", r.status_code, r.text[:2000])
+            return None
+        j = r.json()
+        out = j["choices"][0]["message"]["content"].strip()
+        if not out:
+            logging.error("Vision empty content: %s", j)
+            return None
+        return out
     except Exception as exc:
-        logging.exception("Image describe failed: %r", exc)
-    return None
+        logging.exception("Vision error: %r", exc)
+        return None
+
 
 
 def plans_text(chat_id: int) -> str:
