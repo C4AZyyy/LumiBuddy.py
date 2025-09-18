@@ -1,5 +1,5 @@
 # Lumi.py
-"""Telegram companion bot with OpenRouter integration."""
+"""Telegram companion bot with OpenAI integration."""
 
 # --- отключаем прокси на уровне процесса (делаем это ДО импортов requests/telebot) ---
 import os
@@ -8,8 +8,10 @@ for _v in ("HTTP_PROXY","HTTPS_PROXY","ALL_PROXY","http_proxy","https_proxy","al
 os.environ["NO_PROXY"] = "api.telegram.org,telegram.org,*"
 
 # --- базовые импорты ---
+import base64
 import json
 import logging
+import mimetypes
 import random
 import re
 import time
@@ -56,13 +58,11 @@ WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", f"/webhook/{BOT_TOKEN}")
 WEBHOOK_SSL_CERT = os.getenv("WEBHOOK_SSL_CERT", "").strip() or None
 WEBHOOK_SSL_KEY = os.getenv("WEBHOOK_SSL_KEY", "").strip() or None
 
-OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-70b-instruct")
-OPENROUTER_VISION_MODEL = os.getenv(
-    "OPENROUTER_VISION_MODEL", "meta-llama/llama-3.2-11b-vision-instruct"
-).strip()
-OPENROUTER_TRANSCRIBE_MODEL = os.getenv(
-    "OPENROUTER_TRANSCRIBE_MODEL", "openai/gpt-4o-mini-transcribe"
+OPENAI_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+OPENAI_TEXT_MODEL = os.getenv("OPENAI_TEXT_MODEL", "gpt-4o-mini").strip()
+OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini").strip()
+OPENAI_TRANSCRIBE_MODEL = os.getenv(
+    "OPENAI_TRANSCRIBE_MODEL", "gpt-4o-mini-transcribe"
 ).strip()
 
 CRYPTO_API = os.getenv("CRYPTO_PAY_API_TOKEN", "").strip()
@@ -141,7 +141,7 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
         ),
         "remind": "До конца бесплатного лимита осталось: {rest} сообщений.",
         "ask_topic": "О чём поговорим?",
-        "diagnostics": "OpenRouter: {router} | Trial left: {left} | План: {plan}",
+        "diagnostics": "OpenAI: {router} | Trial left: {left} | План: {plan}",
         "insult": (
             "Я здесь, чтобы поддерживать, но такие слова ранят. Давай договоримся общаться уважительно, иначе мне придётся остановить диалог."
         ),
@@ -150,9 +150,14 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
         ),
         "voice_prompt": "Я получила голосовое сообщение. Дай знать, если я вдруг что-то поняла не так: {text}",
         "voice_failed": "Пока не вышло разобрать голос. Можешь прислать текстом?",
+        "video_prompt": "Я посмотрела видео. Вот что услышала: {text}",
+        "video_failed": "Не получилось разобрать видео. Расскажешь текстом, что там?",
         "photo_failed": "Мне не удалось разобрать фото. Расскажешь словами, что на нём?",
         "photo_prompt": "Я посмотрела на фотографию: {description}. Расскажи, что тебя волнует в связи с этим?",
-        "photo_model": "Пользователь прислал фотографию. Описание: {description}.",
+        "photo_model": (
+            "Пользователь прислал фотографию. Используй анализ изображения: {description}. "
+            "Поддержи собеседника и помоги с задачами, если они есть."
+        ),
         "supportive": [
             "Я рядом и думаю о тебе. Помни, что у тебя уже есть опыт переживать сложные времена.",
             "Сегодня можно сделать что-то доброе для себя. Даже маленький шаг — уже забота о себе.",
@@ -226,7 +231,7 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
         "free_end": "You have used all free messages. Pick a subscription to keep our conversation going.",
         "remind": "You have {rest} messages left in the free limit.",
         "ask_topic": "What would you like to talk about?",
-        "diagnostics": "OpenRouter: {router} | Trial left: {left} | Plan: {plan}",
+        "diagnostics": "OpenAI: {router} | Trial left: {left} | Plan: {plan}",
         "insult": (
             "I'm here to support you, yet those words hurt. Let's stay respectful, otherwise I'll have to step back."
         ),
@@ -235,9 +240,14 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
         ),
         "voice_prompt": "I heard your voice message. Let me know if I misunderstood anything: {text}",
         "voice_failed": "I couldn't transcribe the voice message. Could you send it as text?",
+        "video_prompt": "I watched the video. Here is what I heard: {text}",
+        "video_failed": "I couldn't interpret the video. Could you describe it in text?",
         "photo_failed": "I couldn't interpret the photo. Could you describe it in words?",
         "photo_prompt": "I looked at the picture: {description}. Would you tell me what matters to you about it?",
-        "photo_model": "The user sent a photo. Description: {description}.",
+        "photo_model": (
+            "The user shared a photo. Use this analysis: {description}. Offer support and solve any "
+            "problems you notice."
+        ),
         "supportive": [
             "I'm thinking of you today. You already know how to get through hard times.",
             "Maybe offer yourself a small act of care today. Even a tiny step counts.",
@@ -373,14 +383,14 @@ def plan_perks(plan_code: str, lang: str) -> List[str]:
 
 VISION_PROMPTS = {
     "ru": (
-        "Опиши изображение коротко и эмпатично. Перечисли основные объекты и детали,"
-        " которые могут быть важны собеседнику. Если на изображении есть читаемый текст,"
-        " перепиши его без изменений."
+        "Проанализируй изображение внимательно. Описывай ключевые объекты и эмоции,"
+        " перечисляй читабельный текст дословно и, если есть задача, реши её шаг за шагом"
+        " с пояснениями. Отвечай по-русски и делай выводы, которые помогут собеседнику."
     ),
     "en": (
-        "Give a brief, empathetic description of the image. Mention the key objects and"
-        " details that might matter to the user. If you can read any text in the picture,"
-        " quote it verbatim."
+        "Look at the image closely. Describe the key objects and emotional cues, transcribe"
+        " any readable text verbatim and, if there is a task or problem, solve it step by"
+        " step with explanations. Answer in English and share helpful takeaways."
     ),
 }
 
@@ -660,8 +670,8 @@ def mark_support_sent(chat_id: int) -> None:
     save_state()
 
 
-# ================== OPENROUTER ==================
-def ask_gpt(
+# ================== OPENAI ==================
+def ask_openai(
         prompt: str,
         *,
         language: Optional[str] = None,
@@ -682,43 +692,46 @@ def ask_gpt(
     if max_tokens < 150:
         max_tokens = 150
 
-    if not OPENROUTER_KEY:
-        return "API ключ OpenRouter не настроен. Проверь .env"
+    if not OPENAI_KEY:
+        return "API ключ OpenAI не настроен. Проверь .env"
 
-    messages: List[Dict[str, str]] = [{"role": "system", "content": system_message}]
+    messages: List[Dict[str, object]] = [
+        {"role": "system", "content": system_message},
+    ]
     if history:
         messages.extend(history[-history_limit * 2:])
     messages.append({"role": "user", "content": prompt})
 
+    payload = {
+        "model": OPENAI_TEXT_MODEL,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+
     try:
         resp = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            "https://api.openai.com/v1/chat/completions",
             headers={
-                "Authorization": f"Bearer {OPENROUTER_KEY}",
+                "Authorization": f"Bearer {OPENAI_KEY}",
                 "Content-Type": "application/json",
-                "X-Title": "LumiBuddy",
             },
-            json={
-                "model": OPENROUTER_MODEL,
-                "messages": messages,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-            },
+            json=payload,
             timeout=30,
         )
     except Exception as exc:
-        logging.exception("OpenRouter HTTP error: %r", exc)
+        logging.exception("OpenAI HTTP error: %r", exc)
         return "Сейчас мне сложно ответить. Попробуй ещё раз."
 
     if resp.status_code != 200:
-        logging.error("OpenRouter %s: %s", resp.status_code, resp.text)
+        logging.error("OpenAI %s: %s", resp.status_code, resp.text)
         return "Сервис ответа временно недоступен. Попробуй ещё раз."
 
     try:
         data = resp.json()
         return data["choices"][0]["message"]["content"].strip()
     except Exception as exc:
-        logging.exception("OpenRouter parse error: %r | body=%s", exc, resp.text[:500])
+        logging.exception("OpenAI parse error: %r | body=%s", exc, resp.text[:500])
         return "Сейчас мне сложно ответить. Попробуй ещё раз."
 
 
@@ -764,13 +777,13 @@ def download_file(file_id: str) -> Optional[tuple[bytes, str]]:
 
 
 def transcribe_audio(chat_id: int, file_bytes: bytes, filename: str) -> Optional[str]:
-    if not (OPENROUTER_KEY and OPENROUTER_TRANSCRIBE_MODEL):
+    if not (OPENAI_KEY and OPENAI_TRANSCRIBE_MODEL):
         return None
     try:
         response = requests.post(
-            "https://openrouter.ai/api/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {OPENROUTER_KEY}"},
-            data={"model": OPENROUTER_TRANSCRIBE_MODEL, "language": get_language(chat_id)},
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {OPENAI_KEY}"},
+            data={"model": OPENAI_TRANSCRIBE_MODEL, "language": get_language(chat_id)},
             files={"file": (filename, file_bytes)},
             timeout=60,
         )
@@ -785,44 +798,46 @@ def transcribe_audio(chat_id: int, file_bytes: bytes, filename: str) -> Optional
 
 
 def describe_image(chat_id: int, file_bytes: bytes, filename: str) -> Optional[str]:
-    if not (OPENROUTER_KEY and OPENROUTER_VISION_MODEL):
+    if not (OPENAI_KEY and OPENAI_VISION_MODEL):
         return None
+    prompt_text = VISION_PROMPTS.get(get_language(chat_id), VISION_PROMPTS[DEFAULT_LANGUAGE])
     try:
-        upload = {"file": (filename, file_bytes)}
-        response = requests.post(
-            "https://openrouter.ai/api/v1/images/upload",
-            headers={"Authorization": f"Bearer {OPENROUTER_KEY}"},
-            files=upload,
-            timeout=60,
-        )
-        response.raise_for_status()
-        image_data = response.json()
-        if isinstance(image_data.get("data"), list):
-            image_url = image_data.get("data", [{}])[0].get("url")
-        else:
-            image_url = image_data.get("url")
-        if not image_url:
-            return None
+        image_b64 = base64.b64encode(file_bytes).decode("ascii")
+    except Exception as exc:
+        logging.exception("Image base64 encode failed: %r", exc)
+        return None
 
-        prompt_text = VISION_PROMPTS.get(get_language(chat_id), VISION_PROMPTS[DEFAULT_LANGUAGE])
+    mime, _ = mimetypes.guess_type(filename)
+    if not mime:
+        mime = "image/png"
+
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt_text},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime};base64,{image_b64}"},
+                },
+            ],
+        }
+    ]
+
+    payload = {
+        "model": OPENAI_VISION_MODEL,
+        "messages": messages,
+        "max_tokens": 600,
+    }
+
+    try:
         vision_response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            "https://api.openai.com/v1/chat/completions",
             headers={
-                "Authorization": f"Bearer {OPENROUTER_KEY}",
+                "Authorization": f"Bearer {OPENAI_KEY}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": OPENROUTER_VISION_MODEL,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "input_text", "text": prompt_text},
-                            {"type": "input_image", "image_url": image_url},
-                        ],
-                    }
-                ],
-            },
+            json=payload,
             timeout=60,
         )
         vision_response.raise_for_status()
@@ -1090,7 +1105,7 @@ def cmd_diag(message):
         lang_text(
             message.chat.id,
             "diagnostics",
-            router="ok" if OPENROUTER_KEY else "missing",
+            router="ok" if OPENAI_KEY else "missing",
             left=left,
             premium="yes" if has_premium(message.chat.id) else "no",
             plan=plan_name(plan_code, get_language(message.chat.id)),
@@ -1119,9 +1134,6 @@ def cb_language(callback):
     confirm = LANGUAGES.get(lang, LANGUAGES[DEFAULT_LANGUAGE]).get("language_confirm")
     if confirm:
         bot.send_message(chat_id, str(confirm))
-    bot.send_message(chat_id, greeting_text(chat_id))
-    if not policy_is_shown(chat_id):
-        send_policy(chat_id)
 
 
 @bot.callback_query_handler(func=lambda c: True)
@@ -1165,7 +1177,7 @@ def any_text(message):
     history = list(info.get("history") or [])
     lang = get_language(message.chat.id)
     history_limit = int(plan_behavior(plan_code).get("history_limit", DEFAULT_HISTORY_LIMIT))
-    reply = ask_gpt(text, language=lang, history=history, plan=plan_code)
+    reply = ask_openai(text, language=lang, history=history, plan=plan_code)
     history.append({"role": "user", "content": text})
     history.append({"role": "assistant", "content": reply})
     if history_limit <= 0:
@@ -1198,6 +1210,28 @@ def handle_voice(message):
         bot.send_message(message.chat.id, lang_text(message.chat.id, "voice_failed"))
         return
     bot.send_message(message.chat.id, lang_text(message.chat.id, "voice_prompt", text=transcript))
+    message.text = transcript
+    any_text(message)
+
+
+@bot.message_handler(content_types=["video", "video_note"])
+def handle_video(message):
+    if not ensure_ready(message):
+        return
+
+    file_id = message.video.file_id if message.content_type == "video" else message.video_note.file_id
+    downloaded = download_file(file_id)
+    if not downloaded:
+        bot.send_message(message.chat.id, lang_text(message.chat.id, "video_failed"))
+        return
+
+    file_bytes, filename = downloaded
+    transcript = transcribe_audio(message.chat.id, file_bytes, filename)
+    if not transcript:
+        bot.send_message(message.chat.id, lang_text(message.chat.id, "video_failed"))
+        return
+
+    bot.send_message(message.chat.id, lang_text(message.chat.id, "video_prompt", text=transcript))
     message.text = transcript
     any_text(message)
 
