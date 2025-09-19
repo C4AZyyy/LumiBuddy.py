@@ -566,6 +566,15 @@ def lang_text(chat_id: int, key: str, **kwargs) -> str:
     default_pack = LANGUAGES.get(DEFAULT_LANGUAGE) or next(iter(LANGUAGES.values()))
     pack = LANGUAGES.get(get_language(chat_id), default_pack)
     template = pack.get(key, "")
+    if isinstance(template, (list, tuple)):
+        parts: List[str] = []
+        for part in template:
+            if part is None:
+                continue
+            parts.append(str(part))
+        template = "".join(parts)
+    elif template is None:
+        template = ""
     if kwargs and isinstance(template, str):
         try:
             return template.format(**kwargs)
