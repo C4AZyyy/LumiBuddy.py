@@ -637,9 +637,11 @@ def mark_policy_shown(chat_id: int) -> None:
 
 def mark_policy_sent(chat_id: int) -> None:
     info = U(chat_id)
-    if not info.get("policy_shown"):
-        info["policy_shown"] = True
-        save_state()
+    info["policy_shown"] = True
+    info["offer_prompted"] = True
+    info["offer_remind_at"] = datetime.now(timezone.utc).isoformat()
+    save_state()
+
 
 
 def active_plan(chat_id: int) -> str:
@@ -780,6 +782,14 @@ def set_news_opt_out(chat_id: int) -> bool:
     info["news_opted_at"] = datetime.now(timezone.utc).isoformat()
     save_state()
     return True
+    users.setdefault(cid, {
+        # ...
+        "offer_prompted": False,      # оферта уже показана
+        "offer_remind_at": None,      # когда в последний раз напоминали
+    })
+    # ...
+    info.setdefault("offer_prompted", False)
+    info.setdefault("offer_remind_at", None)
 
 
 # ================== OPENAI ==================
@@ -1034,19 +1044,46 @@ def send_policy(chat_id: int) -> None:
 
 
 def ensure_ready(message) -> bool:
-    if not is_language_confirmed(message.chat.id):
-        send_language_choice(message.chat.id)
+    chat_id = message.chat.id
+
+    if not is_language_confirmed(chat_id):
+        send_language_choice(chat_id)
         return False
-    if not policy_is_shown(message.chat.id):
-        info = U(message.chat.id)
-        if not info.get("policy_shown"):
-            bot.send_message(message.chat.id, greeting_text(message.chat.id))
-            send_policy(message.chat.id)
-        reminder = lang_text_fallback(message.chat.id, "policy_repeat")
-        if reminder:
-            bot.send_message(message.chat.id, reminder)
+
+    if not policy_is_shown(chat_id):
+        info = U(chat_id)
+        now = datetime.now(timezone.utc)
+
+        # Показываем длинную оферту только один раз за сессию
+        if not info.get("offer_prompted"):
+            bot.send_message(chat_id, greeting_text(chat_id))
+            send_policy(chat_id)  # внутри поставит offer_prompted = True
+            return False
+
+        # Короткое напоминание — не чаще, чем раз в 2 минуты
+        remind_ok = True
+        last = info.get("offer_remind_at")
+        if last:
+            try:
+                last_dt = datetime.fromisoformat(last)
+                if last_dt.tzinfo is None:
+                    last_dt = last_dt.replace(tzinfo=timezone.utc)
+                if now - last_dt < timedelta(minutes=2):
+                    remind_ok = False
+            except Exception:
+                pass
+
+        if remind_ok:
+            msg = lang_text_fallback(chat_id, "policy_repeat")
+            if not msg:
+                msg = "Чтобы продолжить, нажми «Принимаю» ниже или отправь /accept."
+            bot.send_message(chat_id, msg)
+            info["offer_remind_at"] = now.isoformat()
+            save_state()
         return False
+
     return True
+
 
 
 def start_polling() -> None:
@@ -1441,6 +1478,17 @@ def handle_photo(message):
     synthetic = str(template or "Photo description: {description}").format(description=description)
     message.text = synthetic
     any_text(message)
+
+
+@bot.message_handler(commands=["accept"])
+def cmd_accept(message):
+    mark_policy_shown(message.chat.id)
+    toast = lang_text(message.chat.id, "policy_accept_toast") or "Условия приняты"
+    try:
+        bot.reply_to(message, toast)
+    except Exception:
+        pass
+    bot.send_message(message.chat.id, lang_text(message.chat.id, "thank_you"))
 
 
 # ================== ЗАПУСК ==================
