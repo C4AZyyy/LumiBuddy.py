@@ -108,33 +108,77 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
             ),
         },
         "greeting": (
-            "Привет! Я — Lumi.\n"
-            "Я рядом, чтобы выговориться, поделиться мыслями и получить поддержку.\n"
-            "Можно писать о чём угодно: радостях, тревогах, планах или сомнениях.\n"
-            "Давай начнём разговор?"
+            "Привет! Я — Lumi, внимательная собеседница.\n"
+            "Я рядом, чтобы разделить твои мысли, переживания и радости.\n"
+            "Перед тем как начнём, поделюсь основными условиями работы."
         ),
         "policy": (
-            '<b>Политика конфиденциальности и ограничений Lumi</b>\n'
-            'Прежде чем мы начнём общение, важно сказать несколько слов:\n\n'
-            '<b>1. Это не медицинский сервис.</b> Lumi — это виртуальный собеседник и источник поддержки. '
-            'Она не является врачом, психотерапевтом или профессиональным консультантом. Здесь нет медицинских '
-            'диагнозов и рецептов. Если у тебя серьёзные проблемы со здоровьем или кризисное состояние — лучше '
-            'сразу обратиться к специалисту.\n\n'
-            '<b>2. Безопасное пространство.</b> Lumi создана, чтобы делиться мыслями, получать поддержку и советы. '
-            'Но она никогда не будет побуждать к насилию, опасным действиям или поступкам, которые могут причинить '
-            'вред тебе или другим.\n\n'
-            '<b>3. Ответственность за действия.</b> Все решения, которые ты принимаешь, остаются на твоей совести и '
-            'ответственности. Lumi может подсказать идею или вдохновить, но она не может управлять твоей жизнью.\n\n'
-            '<b>4. Конфиденциальность.</b> Всё, что ты пишешь, остаётся между тобой и ботом. Мы не передаём твои '
-            'слова третьим лицам. Но помни: бот работает на основе алгоритмов искусственного интеллекта, и часть '
-            'обработки может происходить через сторонние сервисы.\n\n'
-            '<b>5. Дружелюбие и уважение.</b> Lumi создана для диалога в тёплой атмосфере. Пожалуйста, относись '
-            'к ней с уважением, как к живому собеседнику.'
+            '<b>Оферта на предоставление услуг</b>\n\n'
+            '<b>1. Общие положения</b>\n'
+            '1.1. Настоящая оферта — официальное предложение Владислава Зиганшина, самозанятого исполнителя, '
+            'заключить договор возмездного оказания услуг с любым лицом, принявшим условия оферты (далее — «Пользователь»).\n'
+            '1.2. Акцепт осуществляется через использование услуг и/или оплату подписки на платёжной странице Payform/Продамус. '
+            'С момента акцепта оферта считается заключённым договором.\n\n'
+            '<b>2. Предмет оферты</b>\n'
+            '2.1. Исполнитель предоставляет доступ к боту Lumi на базе ИИ для общения, эмоциональной поддержки и развлекательного контента.\n'
+            '2.2. Lumi не является медицинским, психологическим, юридическим или иным профессиональным сервисом. '
+            'Ответы бота формируются алгоритмами и не заменяют консультации специалистов.\n'
+            '2.3. Персональные данные обрабатываются только в объёме, необходимом для предоставления услуг '
+            '(идентификация, доступ к подписке, служебные уведомления и др.) и согласно Политике конфиденциальности.\n\n'
+            '<b>3. Права и обязанности сторон</b>\n'
+            '3.1. Исполнитель обязуется предоставить доступ к боту, поддерживать работоспособность сервиса и соблюдать конфиденциальность. '
+            'Передача данных третьим лицам допускается только по требованию закона или для исполнения договора '
+            '(платёжные, почтовые, сообщенческие провайдеры).\n'
+            '3.2. Пользователь обязуется не использовать бота для получения диагнозов, лечения, юридических заключений и иных профессиональных рекомендаций, '
+            'самостоятельно принимать решения и соблюдать правила общения, не допуская противоправного контента.\n\n'
+            '<b>4. Оплата услуг и возвраты</b>\n'
+            '4.1. Услуги предоставляются по подписке согласно выбранному тарифу. Оплата производится через доступные способы на платёжной странице.\n'
+            '4.2. Возврат средств возможен в течение 1 часа после оплаты (если доступом не злоупотребляли); '
+            'по истечении этого времени средства не возвращаются, за исключением подтверждённых технических сбоев по вине Исполнителя.\n'
+            '4.3. Технические возвраты (двойное списание, явная ошибка) производятся по обращению в поддержку.\n\n'
+            '<b>5. Ответственность</b>\n'
+            '5.1. Исполнитель не несёт ответственность за решения и последствия, принятые Пользователем на основе ответов бота.\n'
+            '5.2. Сервис предоставляется «как есть»; возможны кратковременные перерывы из-за обновлений и/или работ внешних провайдеров.\n\n'
+            '<b>6. Конфиденциальность и данные</b>\n'
+            '6.1. Обрабатываемые данные: Telegram ID/юзернейм, контактные данные, сведения об оплатах/подписках, служебные логи '
+            '(для защиты от злоупотреблений и улучшения сервиса).\n'
+            '6.2. Данные хранятся в срок действия договора и/или до отзыва согласия, а также в сроки, установленные законом '
+            'для бухгалтерии и урегулирования споров.\n'
+            '6.3. Подробности — в Политике конфиденциальности (ссылка/файл).\n\n'
+            '<b>7. Порядок взаимодействия</b>\n'
+            '7.1. Поддержка: [укажи e-mail], Telegram: [@ник], часы ответа: [часы, часовой пояс].\n'
+            '7.2. Претензии направляются в поддержку; срок рассмотрения — до 10 рабочих дней.\n\n'
+            '<b>8. Заключительные положения</b>\n'
+            '8.1. Оферта может быть изменена Исполнителем; новая редакция применяется к будущим отношениям с момента публикации.\n'
+            '8.2. Применяется право РФ.\n\n'
+            '<b>9. Согласие на рассылку (информационные и маркетинговые сообщения)</b>\n'
+            '9.1. Акцептуя оферту и/или оставляя свои контакты, Пользователь добровольно даёт согласие на получение от Исполнителя '
+            'сервисных уведомлений (чек/счёт, статус оплаты, напоминания о подписке, важные изменения сервиса).\n'
+            '9.2. Также Пользователь соглашается на получение информационных и маркетинговых сообщений '
+            '(новости, обновления функционала, персональные предложения, промо-материалы, рекомендации по использованию бота).\n'
+            '9.3. Каналы рассылки: сообщения в Telegram (в том числе через бота), e-mail, SMS/мессенджеры. '
+            'Рассылка направляется в пределах 08:00–22:00 по местному времени Пользователя, если иное не требуется для сервисных уведомлений.\n'
+            '9.4. Пользователь вправе в любой момент отказаться от маркетинговой рассылки, не влияя на получение сервисных уведомлений: '
+            'в Telegram — отправив боту команду /news_off или слово «Стоп»/«STOP»; по e-mail — перейдя по ссылке «Отписаться»; '
+            'обратившись в поддержку (e-mail/Telegram), указав канал, от которого хочет отписаться.\n'
+            '9.5. Для целей рассылки могут обрабатываться: имя/ник, e-mail, телефон (если указан), Telegram ID, сведения об использовании сервиса '
+            '(только для сегментации и релевантности контента). Основание обработки — согласие Пользователя; срок — до его отзыва или до прекращения договора.\n'
+            '9.6. Исполнитель не передаёт контакты третьим лицам для их собственных рассылок. '
+            'Рассылка может отправляться через подрядчиков-операторов связи/почтовых сервисов только по поручению Исполнителя и в пределах данного согласия.'
         ),
-        "thank_you": "Спасибо за прочтение. Давай поговорим.",
-        "policy_repeat": "Я здесь. О чём поговорим?",
-        "policy_again": "Снова рада тебя видеть. Готова продолжить разговор.",
+        "thank_you": "Спасибо! Я рядом и готова продолжить. О чём поговорим?",
+        "policy_repeat": "Сначала примите условия оферты.",
+        "policy_again": "Снова рада тебя видеть! Если нужна оферта — напиши /policy. Чем могу помочь сейчас?",
+        "policy_accept": "Принимаю",
+        "policy_accept_toast": "Условия приняты",
         "policy_reset": "Политику сбросил. Нажми /start.",
+        "news_off_done": (
+            "Маркетинговая рассылка отключена. Сервисные уведомления продолжат приходить. "
+            "Если захочешь снова получать новости, напиши в поддержку."
+        ),
+        "news_off_already": (
+            "Маркетинговая рассылка уже отключена. Если захочешь вернуть новости, напиши в поддержку."
+        ),
         "plan_intro": "Выбери план и перейди по ссылке для оплаты:",
         "free_end": (
             "У тебя закончились бесплатные сообщения. Чтобы продолжить общение и получать поддержку, выбери подходящую подписку."
@@ -166,7 +210,7 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
         ],
         "supportive_intro": "Небольшое напоминание: ты не один. Вот тёплая мысль на сегодня:\n{phrase}",
         "language_prompt": "Привет! Выбери язык, на котором будем общаться.",
-        "language_confirm": "Мы будем говорить на русском. Расскажи, что у тебя на душе?",
+        "language_confirm": "Мы будем говорить на русском. Напиши пару слов, когда будешь готов начать разговор.",
         "support_error": "Не удалось отправить тёплую фразу, но я всё равно рядом.",
         "trial_left": (
             "До конца бесплатного лимита осталось {rest} сообщений. Если чувствуешь, что поддержки не хватает, загляни в планы и выбери подходящий."
@@ -203,30 +247,53 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
             ),
         },
         "greeting": (
-            "Hi! I'm Lumi.\n"
-            "I'm here to listen, support you and share calm thoughts.\n"
-            "You can tell me about anything: joys, worries, plans or doubts.\n"
-            "Shall we start our conversation?"
+            "Hi! I'm Lumi, your attentive companion.\n"
+            "I'm here to share thoughts, worries and bright moments with you.\n"
+            "Before we dive in, let me outline the key service terms."
         ),
         "policy": (
-            '<b>Lumi privacy & safety</b>\n'
-            'Before we talk, here are a few important points:\n\n'
-            '<b>1. Not a medical service.</b> Lumi is a virtual companion and source of emotional support. '
-            'She is not a doctor, therapist or licensed counsellor. There are no diagnoses or prescriptions here. '
-            'If you face a medical emergency or crisis, please reach out to a professional immediately.\n\n'
-            '<b>2. Safe space.</b> Lumi is designed for sharing feelings, gaining support and gentle ideas. '
-            'She will never encourage violence, dangerous actions or anything that could hurt you or others.\n\n'
-            '<b>3. Your responsibility.</b> Every decision you make remains yours. Lumi may offer ideas, yet '
-            'cannot run your life.\n\n'
-            '<b>4. Privacy.</b> What you share stays between you and the bot. We do not pass it to third parties. '
-            'Remember: the bot relies on AI services and some processing may happen via external providers.\n\n'
-            '<b>5. Kindness.</b> Lumi is built for a gentle dialogue. Please treat her with respect, like a caring '
-            'human companion.'
+            '<b>Service offer</b>\n\n'
+            '<b>1. General provisions.</b> This public offer is made by Vladislav Ziganshin, a self-employed provider, '
+            'to conclude a paid service agreement with anyone who accepts it (the “User”). Acceptance happens by using the service '
+            'and/or paying for a subscription via the checkout page (Payform/Prodamus). Once accepted, the offer becomes a contract.\n\n'
+            '<b>2. Subject.</b> The provider grants access to Lumi — an AI-based companion for conversation, emotional support and entertainment. '
+            'Lumi is not a medical, psychological, legal or other professional service; the bot’s answers are algorithmic and do not replace professional advice. '
+            'Personal data is processed only as needed to deliver the service (identification, subscription access, operational notices) in line with the Privacy Policy.\n\n'
+            '<b>3. Rights and duties.</b> The provider maintains access to the bot and keeps the service running while protecting confidentiality. '
+            'Data may be shared with third parties only when required by law or to fulfil the contract (payment, mailing or messaging providers). '
+            'The User agrees not to request diagnoses, treatment or legal opinions, makes decisions independently and follows the chat rules, avoiding unlawful content.\n\n'
+            '<b>4. Payment and refunds.</b> Access is subscription-based according to the selected plan, with payment methods listed on the checkout page. '
+            'Refunds are available within one hour after payment provided the access was not abused; afterwards refunds are granted only for confirmed technical failures caused by the provider. '
+            'Technical refunds (duplicate charges, obvious errors) are processed via support.\n\n'
+            '<b>5. Responsibility.</b> The provider is not liable for decisions or outcomes based on Lumi’s replies. '
+            'The service is provided “as is”; short maintenance breaks may occur due to updates or third-party providers.\n\n'
+            '<b>6. Data.</b> Processed data may include Telegram ID/username, contact details, payment/subscription information and service logs '
+            'to prevent abuse and improve the experience. Data is stored for the contract term and/or until consent is revoked, plus any statutory periods for accounting or disputes.\n\n'
+            '<b>7. Support.</b> Support contacts: [add e-mail], Telegram: [@handle], response hours: [hours, timezone]. '
+            'Claims are reviewed within 10 business days.\n\n'
+            '<b>8. Final terms.</b> The provider may update the offer; new versions apply to future relations from the publication date. Russian law governs the agreement.\n\n'
+            '<b>9. Mailing consent.</b> By accepting the offer and/or sharing contact details, the User agrees to receive service notifications '
+            '(receipts, payment status, subscription reminders, critical updates) as well as informational and marketing messages '
+            '(news, feature updates, personalised offers, promotional materials, tips). Messages may be delivered via Telegram (including the bot), '
+            'e-mail or SMS/messengers, typically between 08:00 and 22:00 local time unless required otherwise for service notices. '
+            'The User can opt out of marketing at any time via /news_off or sending “Stop/STOP” in Telegram, via the “Unsubscribe” link in e-mail, '
+            'or by contacting support and specifying the channel. Data for mailing may include name/nickname, e-mail, phone (if provided), '
+            'Telegram ID and usage information for relevance. Consent lasts until withdrawn or the contract ends. Contacts are not shared with third parties '
+            'for their own messaging; contractors may send messages only on behalf of the provider within this consent.'
         ),
-        "thank_you": "Thanks for reading. Let's talk.",
-        "policy_repeat": "I'm here again. What would you like to talk about?",
-        "policy_again": "Happy to see you again. Ready to continue our chat.",
+        "thank_you": "Thank you! I’m here and ready to continue. What would you like to talk about?",
+        "policy_repeat": "Please accept the service offer first.",
+        "policy_again": "Happy to see you again! If you need the offer text, use /policy. What’s on your mind now?",
+        "policy_accept": "Accept",
+        "policy_accept_toast": "Offer accepted",
         "policy_reset": "Policy reset. Tap /start.",
+        "news_off_done": (
+            "Marketing updates are turned off. Service notifications will still arrive. "
+            "If you’d like to receive news again, please contact support."
+        ),
+        "news_off_already": (
+            "Marketing updates are already off. Reach out to support whenever you want to enable them again."
+        ),
         "plan_intro": "Choose a plan and follow the link to pay:",
         "free_end": "You have used all free messages. Pick a subscription to keep our conversation going.",
         "remind": "You have {rest} messages left in the free limit.",
@@ -256,7 +323,7 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
         ],
         "supportive_intro": "Just a gentle reminder: you're not alone. Here is a warm thought for today:\n{phrase}",
         "language_prompt": "Hi! Please choose the language for our chat.",
-        "language_confirm": "We'll speak English. What is on your mind?",
+        "language_confirm": "We’ll speak English. Send a few words whenever you’re ready to start.",
         "support_error": "I couldn't send the daily note, but I'm still with you.",
         "trial_left": "You have {rest} messages left in your free limit. If you need more space, take a look at the plans.",
         "buy_prompt": "Choose a plan and follow the link to pay:",
@@ -396,6 +463,8 @@ VISION_PROMPTS = {
 
 COLLAPSE_RE = re.compile(r"[^a-zа-я0-9]+")
 
+UNSUBSCRIBE_RE = re.compile(r"^(?:стоп|stop)(?:[.!…\s]*)$", re.IGNORECASE)
+
 SWEAR_PATTERNS = [
     "иди нах", "иди на х", "пошел на", "пошёл на", "сука", "тварь", "ненавижу тебя", "заткнись", "мразь", "нахуй",
     "нахер", "тупой бот", "тупая", "идиот", "кретин", "урод", "бестолковая",
@@ -465,10 +534,14 @@ def U(chat_id: int) -> Dict[str, object]:
         "premium_until": None,
         "language": DEFAULT_LANGUAGE,
         "history": [],
+        "news_opt_out": False,
+        "news_opted_at": None,
     })
     info = users[cid]
     info.setdefault("language", DEFAULT_LANGUAGE)
     info.setdefault("history", [])
+    info.setdefault("news_opt_out", False)
+    info.setdefault("news_opted_at", None)
     return info
 
 
@@ -501,6 +574,18 @@ def lang_text(chat_id: int, key: str, **kwargs) -> str:
     return template if isinstance(template, str) else ""
 
 
+def lang_text_fallback(chat_id: int, key: str) -> str:
+    text = lang_text(chat_id, key)
+    if text:
+        return text
+    default_pack = LANGUAGES.get(DEFAULT_LANGUAGE)
+    if isinstance(default_pack, dict):
+        fallback = default_pack.get(key)
+        if isinstance(fallback, str):
+            return fallback
+    return ""
+
+
 def greeting_text(chat_id: int) -> str:
     default_pack = LANGUAGES.get(DEFAULT_LANGUAGE) or next(iter(LANGUAGES.values()))
     pack = LANGUAGES.get(get_language(chat_id), default_pack)
@@ -520,7 +605,7 @@ def mark_language_confirmed(chat_id: int) -> None:
 def policy_is_shown(chat_id: int) -> bool:
     info = U(chat_id)
     ts = info.get("accepted_at")
-    if not info.get("policy_shown") or not ts:
+    if not ts:
         return False
     try:
         accepted = datetime.fromisoformat(ts) if isinstance(ts, str) else None
@@ -529,8 +614,18 @@ def policy_is_shown(chat_id: int) -> bool:
         if accepted.tzinfo is None:
             accepted = accepted.replace(tzinfo=timezone.utc)
     except Exception:
+        info["accepted_at"] = None
+        info["policy_shown"] = False
+        save_state()
         return False
-    return datetime.now(timezone.utc) - accepted < timedelta(hours=SESSION_TTL_HOURS)
+
+    if datetime.now(timezone.utc) - accepted >= timedelta(hours=SESSION_TTL_HOURS):
+        info["accepted_at"] = None
+        info["policy_shown"] = False
+        save_state()
+        return False
+
+    return True
 
 
 def mark_policy_shown(chat_id: int) -> None:
@@ -538,6 +633,13 @@ def mark_policy_shown(chat_id: int) -> None:
     info["policy_shown"] = True
     info["accepted_at"] = datetime.now(timezone.utc).isoformat()
     save_state()
+
+
+def mark_policy_sent(chat_id: int) -> None:
+    info = U(chat_id)
+    if not info.get("policy_shown"):
+        info["policy_shown"] = True
+        save_state()
 
 
 def active_plan(chat_id: int) -> str:
@@ -668,6 +770,16 @@ def mark_support_sent(chat_id: int) -> None:
     info = U(chat_id)
     info["last_support"] = datetime.now(timezone.utc).isoformat()
     save_state()
+
+
+def set_news_opt_out(chat_id: int) -> bool:
+    info = U(chat_id)
+    if info.get("news_opt_out"):
+        return False
+    info["news_opt_out"] = True
+    info["news_opted_at"] = datetime.now(timezone.utc).isoformat()
+    save_state()
+    return True
 
 
 # ================== OPENAI ==================
@@ -905,9 +1017,20 @@ def send_language_choice(chat_id: int) -> None:
 
 
 def send_policy(chat_id: int) -> None:
-    bot.send_message(chat_id, lang_text(chat_id, "policy"))
-    mark_policy_shown(chat_id)
-    bot.send_message(chat_id, lang_text(chat_id, "thank_you"))
+    markup = types.InlineKeyboardMarkup()
+    markup.add(
+        types.InlineKeyboardButton(
+            lang_text(chat_id, "policy_accept") or LANGUAGES[DEFAULT_LANGUAGE].get("policy_accept", "Accept"),
+            callback_data="offer:accept",
+        )
+    )
+    bot.send_message(
+        chat_id,
+        lang_text(chat_id, "policy"),
+        reply_markup=markup,
+        disable_web_page_preview=True,
+    )
+    mark_policy_sent(chat_id)
 
 
 def ensure_ready(message) -> bool:
@@ -915,8 +1038,13 @@ def ensure_ready(message) -> bool:
         send_language_choice(message.chat.id)
         return False
     if not policy_is_shown(message.chat.id):
-        bot.send_message(message.chat.id, greeting_text(message.chat.id))
-        send_policy(message.chat.id)
+        info = U(message.chat.id)
+        if not info.get("policy_shown"):
+            bot.send_message(message.chat.id, greeting_text(message.chat.id))
+            send_policy(message.chat.id)
+        reminder = lang_text_fallback(message.chat.id, "policy_repeat")
+        if reminder:
+            bot.send_message(message.chat.id, reminder)
         return False
     return True
 
@@ -1096,9 +1224,19 @@ def cmd_start(message):
         send_policy(message.chat.id)
 
 
+@bot.message_handler(commands=["news_off"])
+def cmd_news_off(message):
+    changed = set_news_opt_out(message.chat.id)
+    key = "news_off_done" if changed else "news_off_already"
+    reply = lang_text_fallback(message.chat.id, key)
+    if not reply:
+        reply = "Маркетинговые уведомления отключены."
+    bot.reply_to(message, reply)
+
+
 @bot.message_handler(commands=["policy"])
 def cmd_policy(message):
-    bot.send_message(message.chat.id, lang_text(message.chat.id, "policy"))
+    send_policy(message.chat.id)
 
 
 @bot.message_handler(commands=["reset_policy"])
@@ -1151,6 +1289,31 @@ def cb_language(callback):
         bot.send_message(chat_id, str(confirm))
 
 
+@bot.callback_query_handler(func=lambda c: c.data == "offer:accept")
+def cb_offer_accept(callback):
+    chat_id = callback.message.chat.id if callback.message else callback.from_user.id
+    mark_policy_shown(chat_id)
+
+    toast = lang_text(chat_id, "policy_accept_toast") or LANGUAGES[DEFAULT_LANGUAGE].get(
+        "policy_accept_toast", ""
+    )
+    try:
+        if toast:
+            bot.answer_callback_query(callback.id, toast)
+        else:
+            bot.answer_callback_query(callback.id)
+    except Exception:
+        pass
+
+    if callback.message:
+        try:
+            bot.edit_message_reply_markup(chat_id, callback.message.message_id, reply_markup=None)
+        except Exception:
+            pass
+
+    bot.send_message(chat_id, lang_text(chat_id, "thank_you"))
+
+
 @bot.callback_query_handler(func=lambda c: True)
 def cb_fallback(callback):
     try:
@@ -1168,6 +1331,14 @@ def any_text(message):
     text = (message.text or "").strip()
     if not text:
         bot.send_message(message.chat.id, lang_text(message.chat.id, "ask_topic"))
+        return
+    if UNSUBSCRIBE_RE.match(text):
+        changed = set_news_opt_out(message.chat.id)
+        key = "news_off_done" if changed else "news_off_already"
+        reply = lang_text_fallback(message.chat.id, key)
+        if not reply:
+            reply = "Маркетинговые уведомления отключены."
+        bot.send_message(message.chat.id, reply)
         return
     if contains_patterns(text, SWEAR_PATTERNS, SWEAR_REGEXES):
         bot.send_message(message.chat.id, lang_text(message.chat.id, "insult"))
