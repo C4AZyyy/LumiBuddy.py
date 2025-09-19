@@ -189,6 +189,16 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
         "insult": (
             "Я здесь, чтобы поддерживать, но такие слова ранят. Давай договоримся общаться уважительно, иначе мне придётся остановить диалог."
         ),
+        "abuse_first": (
+            "Я здесь, чтобы поддерживать. Но когда меня оскорбляют, мне приходится ставить границы. Если это повторится — нам придётся остановить разговор."
+        ),
+        "abuse_final": (
+            "Я вижу, что тебе больно. Но личные оскорбления в мой адрес недопустимы, поэтому я завершаю диалог. Если захочешь — возвращайся, когда будешь готов(а)."
+        ),
+        "vent_ok": (
+            "Я слышу, что эмоций много. Прямых оскорблений в мой адрес нет, так что можешь выговориться — я здесь, чтобы поддержать."
+        ),
+        "lyrics_ask": "Здорово! Жду одну-две строки, постараюсь угадать песню и продолжить.",
         "sensitive": (
             "Я не обсуждаю темы насилия, оружия или причинения вреда. Давай сосредоточимся на твоих чувствах и том, что поможет тебе стать спокойнее."
         ),
@@ -302,6 +312,16 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
         "insult": (
             "I'm here to support you, yet those words hurt. Let's stay respectful, otherwise I'll have to step back."
         ),
+        "abuse_first": (
+            "I'm here to support you. When I'm insulted, I need to set boundaries. Let's keep this safe so we can continue."
+        ),
+        "abuse_final": (
+            "I can feel how much this hurts. Personal insults toward me aren't okay, so I'll step back for now. Come back when you're ready."
+        ),
+        "vent_ok": (
+            "I hear how intense this feels. Since it's not aimed at me, you can vent—I'm here to listen."
+        ),
+        "lyrics_ask": "Sure, I'll try! Send me one-two lines—I'll try to guess the song and continue.",
         "sensitive": (
             "I can't take part in topics about violence, weapons or harming anyone. Let's focus on what you feel and what could help right now."
         ),
@@ -465,18 +485,6 @@ COLLAPSE_RE = re.compile(r"[^a-zа-я0-9]+")
 
 UNSUBSCRIBE_RE = re.compile(r"^(?:стоп|stop)(?:[.!…\s]*)$", re.IGNORECASE)
 
-SWEAR_PATTERNS = [
-    "иди нах", "иди на х", "пошел на", "пошёл на", "сука", "тварь", "ненавижу тебя", "заткнись", "мразь", "нахуй",
-    "нахер", "тупой бот", "тупая", "идиот", "кретин", "урод", "бестолковая",
-    "fuck", "bitch", "stfu", "stupid bot", "dumb bot",
-]
-
-SWEAR_REGEXES = [
-    re.compile(r"\b(?:ху|хy|hu)y\w*", re.IGNORECASE),
-    re.compile(r"\b(?:еб|eб|ye?b)\w*", re.IGNORECASE),
-    re.compile(r"\b(?:f\W*ck)\b", re.IGNORECASE),
-]
-
 SENSITIVE_PATTERNS = [
     "убил", "убить", "убий", "расстрел", "пистолет", "оружие", "покончить", "суицид", "поджечь", "расправиться",
     "монстр", "уберу", "лишить жизни", "покончу", "насилие", "насиловать", "изнасил", "ударить ножом", "зарезать",
@@ -581,10 +589,14 @@ def U(chat_id: int) -> Dict[str, object]:
         "news_opted_at": None,
         "offer_prompted": False,   # <- НОВОЕ
         "offer_remind_at": None,   # <- НОВОЕ
+        "abuse_strikes": 0,
+        "lyrics_expected": False,
     })
     info = users[cid]
     info.setdefault("offer_prompted", False)
     info.setdefault("offer_remind_at", None)
+    info.setdefault("abuse_strikes", 0)
+    info.setdefault("lyrics_expected", False)
     return info
 
 
@@ -798,6 +810,98 @@ def contains_patterns(
     return False
 
 
+
+
+HARD_TARGET_WORDS = {
+    "ты",
+    "тебя",
+    "тебе",
+    "тобой",
+    "тобою",
+    "твой",
+    "твоя",
+    "твои",
+    "твою",
+    "твоё",
+    "твоей",
+    "твоих",
+    "вы",
+    "вас",
+    "вам",
+    "вами",
+    "ваш",
+    "ваша",
+    "ваше",
+    "ваши",
+    "бот",
+    "бота",
+    "боту",
+    "ботом",
+    "боты",
+    "ботик",
+    "ботика",
+    "ботику",
+    "ботиком",
+    "люми",
+    "lumi",
+    "ассистент",
+    "ассистента",
+    "ассистенту",
+    "ассистентом",
+    "ассистентка",
+    "assistant",
+    "ai",
+}
+HARD_TARGET_PATTERN = r"(?:" + "|".join(sorted(HARD_TARGET_WORDS)) + r")"
+HARD_TARGET_RE = re.compile(rf"\b{HARD_TARGET_PATTERN}\b", re.IGNORECASE)
+SECOND_PERSON_RE = re.compile(r"\b(?:ты|тебе|тебя|тобой|твой|твои|вы|вас|вам|вами|ваш)\b", re.IGNORECASE)
+HARD_SMEAR_PATTERN = (
+    r"(?:туп(?:ая|ой)|дур[ао]|идиотк?а|кретинк?а?|мразь|сука|тварь|шлюх\w*|проститутк\w*|"
+    r"скотин\w*|ебан\w*|ёбан\w*|ебуч\w*|хуев\w*|хуёв\w*|xy[еe]в\w*|fuck\w*|"
+    r"bitch\w*|asshole|stfu|moron)"
+)
+HARD_SMEAR_RE = re.compile(rf"\b{HARD_SMEAR_PATTERN}\b", re.IGNORECASE)
+TARGETED_ABUSE_RE = re.compile(
+    rf'(?:\b{HARD_TARGET_PATTERN}\b[\w\s,!?\"\'().:-]*\b{HARD_SMEAR_PATTERN}\b)|'
+    rf'(?:\b{HARD_SMEAR_PATTERN}\b[\w\s,!?\"\'().:-]*\b{HARD_TARGET_PATTERN}\b)',
+    re.IGNORECASE,
+)
+GENERAL_PROFANITY_RE = re.compile(
+    r"(?:\b(?:хуй|хуя|хуе|хуё|пизд|еб|ёб|бляд|сука|дерьм|говн|мраз|мудак|урод|оху|аху|хрен|черт|"
+    r"fuck|shit|damn|bitch|asshole|wtf|fucking|motherfucker)\w*|\bнах\w*|сучк\w*|"
+    r"ебан[\w-]*|ёбан[\w-]*|черт\s+побери|screw you)",
+    re.IGNORECASE,
+)
+LYRICS_TRIGGERS_RE = re.compile(
+    r"(?:\b(?:скажу|напишу|дам)\s+фраз\w*\s+из\s+песн|\bпродолжи(?:ть)?\s+(?:эту\s+)?песн|"
+    r"\b(?:угадай|загадал[аи]?|вспомни)\s+песн|\bcontinue\s+(?:the\s+)?song|"
+    r"\b(?:give|send)\s+you\s+a\s+lyric|\bguess\s+the\s+lyrics?)",
+    re.IGNORECASE,
+)
+
+def is_targeted_abuse(text: str) -> bool:
+    if not text:
+        return False
+    lowered = text.lower()
+    if not GENERAL_PROFANITY_RE.search(lowered):
+        return False
+    if TARGETED_ABUSE_RE.search(lowered):
+        return True
+    if ("лум" in lowered or "lumi" in lowered) and HARD_SMEAR_RE.search(lowered):
+        return True
+    if HARD_TARGET_RE.search(lowered) and HARD_SMEAR_RE.search(lowered):
+        return True
+    if SECOND_PERSON_RE.search(lowered) and HARD_SMEAR_RE.search(lowered):
+        return True
+    return False
+
+
+def has_general_profanity(text: str) -> bool:
+    if not text:
+        return False
+    return bool(GENERAL_PROFANITY_RE.search(text))
+
+
 def should_send_support(chat_id: int, plan_code: str) -> bool:
     interval = plan_behavior(plan_code).get("support_interval")
     if not interval:
@@ -820,7 +924,6 @@ def should_send_support(chat_id: int, plan_code: str) -> bool:
         hours = 24.0
     return datetime.now(timezone.utc) - last_dt > timedelta(hours=hours)
 
-
 def mark_support_sent(chat_id: int) -> None:
     info = U(chat_id)
     info["last_support"] = datetime.now(timezone.utc).isoformat()
@@ -837,17 +940,50 @@ def set_news_opt_out(chat_id: int) -> bool:
     return True
 
 # ================== OPENAI ==================
+def ask_openai_lyrics(
+        fragment: str,
+        *,
+        language: Optional[str],
+        history: Optional[List[Dict[str, str]]],
+        plan: str,
+) -> str:
+    lang = (language or DEFAULT_LANGUAGE).lower()
+    if lang.startswith("en"):
+        prompt = (
+            "MODE: SONG GUESS AND CONTINUATION.\n"
+            "You receive one or two lines from a song (or something similar). Tasks:\n"
+            "1) Try to identify the song and performer.\n"
+            "2) If you are confident — continue the original lyrics for 1-2 lines without censorship.\n"
+            "3) If you are unsure — ask for a hint and add a friendly remark.\n"
+            "4) If the quote contains profanity, repeat it exactly as in the original — it's not an insult toward you.\n"
+            f"\nQUOTE: {fragment}"
+        )
+    else:
+        prompt = (
+            "РЕЖИМ: ПОИСК ПЕСНИ И КОРОТКОЕ ПРОДОЛЖЕНИЕ.\n"
+            "Тебе прислали одну-две строки из песни (или похожую фразу). Задача:\n"
+            "1) Попробуй узнать песню и исполнителя.\n"
+            "2) Если уверена — продолжи оригинальный текст на 1–2 строки без цензуры.\n"
+            "3) Если не уверена — попроси подсказку и добавь дружелюбный комментарий.\n"
+            "4) Если в цитате есть ненормативная лексика, повтори её как в оригинале — это не оскорбление в твой адрес.\n"
+            f"\nЦИТАТА: {fragment}"
+        )
+    return ask_openai(prompt, language=language, history=history, plan=plan)
+
+
 def ask_openai(
         prompt: str,
         *,
         language: Optional[str] = None,
         history: Optional[List[Dict[str, str]]] = None,
         plan: str = "free",
+        system_override: Optional[str] = None,
+        history_override: Optional[List[Dict[str, str]]] = None,
 ) -> str:
     lang = (language or DEFAULT_LANGUAGE).lower()
     preset = language_preset(lang)
     persona_map = preset.get("personas", {}) if isinstance(preset.get("personas"), dict) else {}
-    system_message = str(persona_map.get(plan, preset.get("system", "")))
+    system_message = system_override or str(persona_map.get(plan, preset.get("system", "")))
 
     behavior = plan_behavior(plan)
     history_limit = int(behavior.get("history_limit", DEFAULT_HISTORY_LIMIT))
@@ -864,8 +1000,9 @@ def ask_openai(
     messages: List[Dict[str, object]] = [
         {"role": "system", "content": system_message},
     ]
-    if history:
-        messages.extend(history[-history_limit * 2:])
+    effective_history = history_override if history_override is not None else history
+    if effective_history:
+        messages.extend(effective_history[-history_limit * 2:])
     messages.append({"role": "user", "content": prompt})
 
     payload = {
@@ -1421,17 +1558,51 @@ def any_text(message):
     if UNSUBSCRIBE_RE.match(text):
         changed = set_news_opt_out(message.chat.id)
         key = "news_off_done" if changed else "news_off_already"
-        reply = lang_text_fallback(message.chat.id, key)
-        if not reply:
-            reply = "Маркетинговые уведомления отключены."
+        reply = lang_text_fallback(message.chat.id, key) or "Маркетинговые уведомления отключены."
         bot.send_message(message.chat.id, reply)
         return
-    if contains_patterns(text, SWEAR_PATTERNS, SWEAR_REGEXES):
-        bot.send_message(message.chat.id, lang_text(message.chat.id, "insult"))
+
+    if LYRICS_TRIGGERS_RE.search(text):
+        info["lyrics_expected"] = True
+        save_state()
+        bot.send_message(message.chat.id, lang_text(message.chat.id, "lyrics_ask"))
         return
+
+    if info.get("lyrics_expected"):
+        info["lyrics_expected"] = False
+        save_state()
+
+        plan_code = active_plan(message.chat.id)
+        lang = get_language(message.chat.id)
+        history = list(info.get("history") or [])
+        reply = ask_openai_lyrics(text, language=lang, history=history, plan=plan_code)
+
+        history.append({"role": "user", "content": f"[LYRICS] {text}"})
+        history.append({"role": "assistant", "content": reply})
+        history_limit = int(plan_behavior(plan_code).get("history_limit", DEFAULT_HISTORY_LIMIT))
+        if history_limit <= 0:
+            history_limit = DEFAULT_HISTORY_LIMIT
+        if len(history) > history_limit * 2:
+            history = history[-history_limit * 2:]
+        info["history"] = history
+        save_state()
+        bot.send_message(message.chat.id, reply)
+        return
+
     if contains_patterns(text, SENSITIVE_PATTERNS, SENSITIVE_REGEXES):
         bot.send_message(message.chat.id, lang_text(message.chat.id, "sensitive"))
         return
+
+    if is_targeted_abuse(text):
+        strikes = int(info.get("abuse_strikes", 0)) + 1
+        key = "abuse_final" if strikes >= 2 else "abuse_first"
+        info["abuse_strikes"] = 0 if strikes >= 2 else strikes
+        save_state()
+        bot.send_message(message.chat.id, lang_text(message.chat.id, key))
+        return
+
+    if has_general_profanity(text):
+        bot.send_message(message.chat.id, lang_text(message.chat.id, "vent_ok"))
 
     plan_code = active_plan(message.chat.id)
     is_premium = plan_code != "free"
