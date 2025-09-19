@@ -525,6 +525,49 @@ def save_state() -> None:
         json.dump(users, f, ensure_ascii=False, indent=2)
 
 
+def ensure_ready(message) -> bool:
+    chat_id = message.chat.id
+
+    if not is_language_confirmed(chat_id):
+        send_language_choice(chat_id)
+        return False
+
+    if not policy_is_shown(chat_id):
+        info = U(chat_id)
+        now = datetime.now(timezone.utc)
+
+        if not info.get("offer_prompted"):
+            info["offer_prompted"] = True
+            info["offer_remind_at"] = now.isoformat()
+            save_state()
+            bot.send_message(chat_id, greeting_text(chat_id))
+            send_policy(chat_id)
+            return False
+
+        # Короткое напоминание не чаще раза в 2 минуты
+        remind_ok = True
+        last = info.get("offer_remind_at")
+        if last:
+            try:
+                last_dt = datetime.fromisoformat(last)
+                if last_dt.tzinfo is None:
+                    last_dt = last_dt.replace(tzinfo=timezone.utc)
+                if now - last_dt < timedelta(minutes=2):
+                    remind_ok = False
+            except Exception:
+                pass
+
+        if remind_ok:
+            msg = lang_text_fallback(chat_id, "policy_repeat") or "Чтобы продолжить, нажми «Принимаю» или /accept."
+            bot.send_message(chat_id, msg)
+            info["offer_remind_at"] = now.isoformat()
+            save_state()
+        return False
+
+    return True
+
+
+
 def U(chat_id: int) -> Dict[str, object]:
     cid = str(chat_id)
     users.setdefault(cid, {
@@ -536,13 +579,14 @@ def U(chat_id: int) -> Dict[str, object]:
         "history": [],
         "news_opt_out": False,
         "news_opted_at": None,
+        "offer_prompted": False,   # <- НОВОЕ
+        "offer_remind_at": None,   # <- НОВОЕ
     })
     info = users[cid]
-    info.setdefault("language", DEFAULT_LANGUAGE)
-    info.setdefault("history", [])
-    info.setdefault("news_opt_out", False)
-    info.setdefault("news_opted_at", None)
+    info.setdefault("offer_prompted", False)
+    info.setdefault("offer_remind_at", None)
     return info
+
 
 
 def get_language(chat_id: int) -> str:
@@ -791,15 +835,6 @@ def set_news_opt_out(chat_id: int) -> bool:
     info["news_opted_at"] = datetime.now(timezone.utc).isoformat()
     save_state()
     return True
-    users.setdefault(cid, {
-        # ...
-        "offer_prompted": False,      # оферта уже показана
-        "offer_remind_at": None,      # когда в последний раз напоминали
-    })
-    # ...
-    info.setdefault("offer_prompted", False)
-    info.setdefault("offer_remind_at", None)
-
 
 # ================== OPENAI ==================
 def ask_openai(
@@ -1035,64 +1070,57 @@ def send_language_choice(chat_id: int) -> None:
     bot.send_message(chat_id, prompt, reply_markup=markup)
 
 
+def _chunk_text(text: str, limit: int = 3500) -> List[str]:
+    """Режем по абзацам, чтобы не ловить 4096-лимит и ошибки HTML."""
+    parts, buf = [], ""
+    for para in text.split("\n\n"):
+        add = (("\n\n" if buf else "") + para)
+        if len(buf) + len(add) > limit:
+            if buf:
+                parts.append(buf)
+            buf = para
+        else:
+            buf += add
+    if buf:
+        parts.append(buf)
+    return parts
+
+
+
 def send_policy(chat_id: int) -> None:
-    markup = types.InlineKeyboardMarkup()
-    markup.add(
+    text = lang_text(chat_id, "policy")
+    chunks = _chunk_text(text)
+
+    # Кнопка "Принимаю"
+    kb = types.InlineKeyboardMarkup()
+    kb.add(
         types.InlineKeyboardButton(
             lang_text(chat_id, "policy_accept") or LANGUAGES[DEFAULT_LANGUAGE].get("policy_accept", "Accept"),
             callback_data="offer:accept",
         )
     )
-    bot.send_message(
-        chat_id,
-        lang_text(chat_id, "policy"),
-        reply_markup=markup,
-        disable_web_page_preview=True,
-    )
-    mark_policy_sent(chat_id)
+    lp = types.LinkPreviewOptions(is_disabled=True)
 
+    try:
+        # все части без кнопки
+        for c in chunks[:-1]:
+            bot.send_message(chat_id, c, link_preview_options=lp)
+        # последняя часть с кнопкой
+        last = chunks[-1] if chunks else "—"
+        bot.send_message(chat_id, last, reply_markup=kb, link_preview_options=lp)
 
-def ensure_ready(message) -> bool:
-    chat_id = message.chat.id
+        # помечаем, что оферта показана (для антиспама напоминаний)
+        mark_policy_sent(chat_id)
 
-    if not is_language_confirmed(chat_id):
-        send_language_choice(chat_id)
-        return False
-
-    if not policy_is_shown(chat_id):
-        info = U(chat_id)
-        now = datetime.now(timezone.utc)
-
-        # Показываем длинную оферту только один раз за сессию
-        if not info.get("offer_prompted"):
-            bot.send_message(chat_id, greeting_text(chat_id))
-            send_policy(chat_id)  # внутри поставит offer_prompted = True
-            return False
-
-        # Короткое напоминание — не чаще, чем раз в 2 минуты
-        remind_ok = True
-        last = info.get("offer_remind_at")
-        if last:
-            try:
-                last_dt = datetime.fromisoformat(last)
-                if last_dt.tzinfo is None:
-                    last_dt = last_dt.replace(tzinfo=timezone.utc)
-                if now - last_dt < timedelta(minutes=2):
-                    remind_ok = False
-            except Exception:
-                pass
-
-        if remind_ok:
-            msg = lang_text_fallback(chat_id, "policy_repeat")
-            if not msg:
-                msg = "Чтобы продолжить, нажми «Принимаю» ниже или отправь /accept."
-            bot.send_message(chat_id, msg)
-            info["offer_remind_at"] = now.isoformat()
-            save_state()
-        return False
-
-    return True
-
+    except Exception as e:
+        logging.exception("send_policy failed, fallback to document: %r", e)
+        # Фолбэк: шлём как документ + отдельно кнопку
+        try:
+            bot.send_document(chat_id, ("offer.txt", text.encode("utf-8")),
+                              caption="Полная оферта во вложении. Для продолжения — нажми «Принимаю».")
+        except Exception:
+            pass
+        bot.send_message(chat_id, lang_text_fallback(chat_id, "policy_repeat") or "Чтобы продолжить, нажми «Принимаю».", reply_markup=kb)
 
 
 def start_polling() -> None:
@@ -1314,25 +1342,37 @@ def cmd_diag(message):
 
 @bot.callback_query_handler(func=lambda c: c.data and c.data.startswith("lang:"))
 def cb_language(callback):
+    # подтвердим тап
     try:
         bot.answer_callback_query(callback.id)
     except Exception:
         pass
 
+    # распаковываем выбор
     lang = callback.data.split(":", 1)[1].lower()
     chat_id = callback.message.chat.id if callback.message else callback.from_user.id
+
+    # сохраняем язык и помечаем подтверждение
     set_language(chat_id, lang)
     mark_language_confirmed(chat_id)
 
+    # прячем клавиатуру выбора языка
     if callback.message:
         try:
             bot.edit_message_reply_markup(chat_id, callback.message.message_id, reply_markup=None)
         except Exception:
             pass
 
+    # короткое подтверждение
     confirm = LANGUAGES.get(lang, LANGUAGES[DEFAULT_LANGUAGE]).get("language_confirm")
     if confirm:
         bot.send_message(chat_id, str(confirm))
+
+    # сразу показываем приветствие и оферту, если она ещё не принята
+    if not policy_is_shown(chat_id):
+        bot.send_message(chat_id, greeting_text(chat_id))
+        send_policy(chat_id)
+
 
 
 @bot.callback_query_handler(func=lambda c: c.data == "offer:accept")
