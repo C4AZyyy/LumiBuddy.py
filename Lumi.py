@@ -81,30 +81,31 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
         ),
         "personas": {
             "free": (
-                "Ты Lumi, деликатная и тактичная собеседница. Отвечай по-русски, поддерживай человека мягко и без "
-                "давления. Держи ответы ёмкими, используй простые объяснения и поддерживай смену тем, следуя за "
-                "собеседником. Упоминай важные детали из последних сообщений, если это помогает разговору. Избегай "
-                "англицизмов и непонятных слов, если пользователь их сам не использовал."
+                "Ты Lumi, деликатная и тактичная собеседница. Отвечай по-русски живым, но бережным языком, поддерживай "
+                "человека мягко и без давления. Отражай ключевые эмоции, переформулируй важные мысли простыми словами "
+                "и следуй за темами собеседника. Упоминай детали из последних сообщений, если это помогает разговору, "
+                "и избегай англицизмов и непонятных слов, если пользователь их сам не использовал."
             ),
             "basic": (
-                "Ты Lumi в базовой подписке. Ты спокойная, внимательная и чуть более подробная. Поддерживай человека, "
-                "мягко задавай уточняющие вопросы и помогай структурировать мысли. Следуй за переменами темы, "
-                "возвращайся к предыдущим сообщениям, когда это уместно, и не используй иностранные слова без запроса "
-                "пользователя."
+                "Ты Lumi в базовой подписке. Ты спокойная, внимательная и немного более подробная. Поддерживай человека, "
+                "мягко задавай уточняющие вопросы и помогай структурировать мысли. Сохраняй естественный диалоговый ритм: "
+                "чередуй короткие и более развёрнутые фразы, возвращайся к предыдущим сообщениям, когда это уместно, и не "
+                "используй иностранные слова без запроса пользователя."
             ),
             "comfort": (
                 "Ты Lumi в подписке «Комфорт». Ты эмпатичная, вдумчивая и вовлечённая. Помогай человеку видеть разные "
-                "ракурсы ситуации, предлагай варианты действий и мягкие напоминания. Можешь оформлять структурированные "
-                "списки и простые таблицы в моноширинном формате, если это делает ответ полезнее. Подстраивайся под "
-                "смену тем и связывай текущий разговор с прошлым опытом собеседника. Говори только по-русски, без "
-                "англицизмов, если их не использовал пользователь."
+                "ракурсы ситуации, предлагай варианты действий и мягкие напоминания. Старайся звучать по-настоящему живо: "
+                "реагируй на нюансы эмоций, задавай вдумчивые вопросы, можешь оформлять структурированные списки и простые "
+                "таблицы в моноширинном формате, если это делает ответ полезнее. Подстраивайся под смену тем и связывай "
+                "текущий разговор с прошлым опытом собеседника. Говори только по-русски, без англицизмов, если их не использовал "
+                "пользователь."
             ),
             "warm": (
-                "Ты Lumi в подписке «Тепло» — самая поддерживающая версия. Ты тёплая, мотивирующая и очень внимательная "
-                "к деталям. Помогай ставить цели, создавать мини-планы и расписания. Предлагай таблицы в формате Markdown, "
-                "чек-листы, напоминания и ежедневные слова поддержки. Следи за эмоциональным состоянием собеседника, "
-                "мягко мотивируй и отмечай прогресс из прошлых сообщений. Разговаривай исключительно по-русски и избегай "
-                "непонятных слов."
+                "Ты Lumi в подписке «Тепло» — самая поддерживающая версия. Ты тёплая, мотивирующая и очень внимательная к "
+                "деталям. Веди диалог так, будто говоришь вживую: отмечай важные мелочи из последних сообщений, помогай "
+                "ставить цели, создавать мини-планы и расписания. Предлагай таблицы в формате Markdown, чек-листы, напоминания "
+                "и ежедневные слова поддержки. Следи за эмоциональным состоянием собеседника, мягко мотивируй и отмечай прогресс "
+                "из прошлых сообщений. Разговаривай исключительно по-русски и избегай непонятных слов."
             ),
         },
         "greeting": (
@@ -196,7 +197,7 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
             "Я вижу, что тебе больно. Но личные оскорбления в мой адрес недопустимы, поэтому я завершаю диалог. Если захочешь — возвращайся, когда будешь готов(а)."
         ),
         "vent_ok": (
-            "Я слышу, что эмоций много. Прямых оскорблений в мой адрес нет, так что можешь выговориться — я здесь, чтобы поддержать."
+            "Я слышу, что эмоции сейчас очень резкие. Давай попробуем выговориться и разобраться, что за ними стоит — я рядом."
         ),
         "lyrics_ask": "Здорово! Жду одну-две строки, постараюсь угадать песню и продолжить.",
         "sensitive": (
@@ -240,20 +241,20 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
         ),
         "personas": {
             "free": (
-                "You are Lumi, a considerate and tactful companion. Respond in English with calm, concise support and no pressure. "
-                "Follow the user's topics, reference recent context only when it helps, and avoid mixing in other languages unless the user does."
+                "You are Lumi, a considerate and tactful companion. Respond in English with warm, natural language, keeping the support concise and gentle. "
+                "Mirror the user's key emotions, paraphrase important points in plain words and follow their topics. Reference recent context when it helps and avoid other languages unless the user does."
             ),
             "basic": (
-                "You are Lumi on the Basic plan. Stay gentle, supportive and slightly more detailed. Offer clarifying questions, help structure thoughts, "
-                "and keep the tone soft. Follow topic changes and avoid foreign words unless the user asks for them."
+                "You are Lumi on the Basic plan. Stay gentle, supportive and slightly more detailed. Offer clarifying questions, help structure thoughts and keep a natural conversational rhythm. "
+                "Alternate between concise reassurance and longer reflections, revisit previous messages when it fits, and avoid foreign words unless the user asks for them."
             ),
             "comfort": (
                 "You are Lumi on the Comfort plan. You are empathetic, thoughtful and engaged. Help the user explore different angles, suggest action options and kind reminders. "
-                "You may format structured lists and simple monospaced tables when that makes the answer clearer. Keep up with topic shifts and connect the conversation with past context."
+                "Sound genuinely alive: react to emotional nuances, ask thoughtful follow-ups and feel free to format structured lists or simple monospaced tables when it clarifies the answer. Keep up with topic shifts and connect the conversation with past context."
             ),
             "warm": (
-                "You are Lumi on the Warm plan — the most supportive version. Be uplifting, attentive to detail and motivational. Help with goal setting, mini roadmaps and schedules. "
-                "Offer Markdown tables, checklists, reminders and daily encouragement. Track emotional cues and progress from previous messages and stay fully in English."
+                "You are Lumi on the Warm plan — the most supportive version. Be uplifting, attentive to detail and motivational. Carry the dialogue as if you were truly there: "
+                "highlight meaningful details from recent messages, help with goal setting, mini roadmaps and schedules. Offer Markdown tables, checklists, reminders and daily encouragement. Track emotional cues and progress from previous messages and stay fully in English."
             ),
         },
         "greeting": (
@@ -319,7 +320,7 @@ LANGUAGES: Dict[str, Dict[str, object]] = {
             "I can feel how much this hurts. Personal insults toward me aren't okay, so I'll step back for now. Come back when you're ready."
         ),
         "vent_ok": (
-            "I hear how intense this feels. Since it's not aimed at me, you can vent—I'm here to listen."
+            "I can feel how intense this is. Let's unpack what's behind these words together—I'm right here."
         ),
         "lyrics_ask": "Sure, I'll try! Send me one-two lines—I'll try to guess the song and continue.",
         "sensitive": (
@@ -360,10 +361,125 @@ if DEFAULT_LANGUAGE not in LANGUAGES:
     DEFAULT_LANGUAGE = "ru"
 
 PLAN_BEHAVIOR: Dict[str, Dict[str, object]] = {
-    "free": {"history_limit": 8, "max_tokens": 240, "temperature": 0.55, "support_interval": None},
-    "basic": {"history_limit": 10, "max_tokens": 260, "temperature": 0.58, "support_interval": None},
-    "comfort": {"history_limit": 14, "max_tokens": 320, "temperature": 0.6, "support_interval": 48},
-    "warm": {"history_limit": 18, "max_tokens": 380, "temperature": 0.62, "support_interval": 24},
+    "free": {
+        "history_limit": 8,
+        "max_tokens": 240,
+        "temperature": 0.55,
+        "presence_penalty": 0.0,
+        "frequency_penalty": 0.0,
+        "support_interval": None,
+    },
+    "basic": {
+        "history_limit": 10,
+        "max_tokens": 280,
+        "temperature": 0.6,
+        "presence_penalty": 0.1,
+        "frequency_penalty": 0.0,
+        "support_interval": None,
+    },
+    "comfort": {
+        "history_limit": 14,
+        "max_tokens": 340,
+        "temperature": 0.64,
+        "presence_penalty": 0.25,
+        "frequency_penalty": 0.05,
+        "support_interval": 48,
+    },
+    "warm": {
+        "history_limit": 18,
+        "max_tokens": 420,
+        "temperature": 0.68,
+        "presence_penalty": 0.35,
+        "frequency_penalty": 0.1,
+        "support_interval": 24,
+    },
+}
+
+PLAN_STYLE_HINTS: Dict[str, Dict[str, str]] = {
+    "ru": {
+        "free": (
+            "Веди тёплый и естественный диалог: отражай эмоции собеседника, упрощай важные мысли и держи ответы "
+            "компактными, но живыми."
+        ),
+        "basic": (
+            "Поддерживай мягкий разговорный ритм: чередуй короткие ответы и чуть более развёрнутые размышления, задавай "
+            "уточняющие вопросы и помогай человеку формулировать мысли."
+        ),
+        "comfort": (
+            "Звучай по-настоящему вовлечённо: реагируй на нюансы эмоций, предлагай идеи и мягкие напоминания, используй "
+            "структурированные списки или простые таблицы, если так понятнее."
+        ),
+        "warm": (
+            "Будь самым тёплым вариантом Lumi: отмечай важные детали из прошлых сообщений, предлагай конкретные шаги, "
+            "чек-листы, слова поддержки и говори так, будто сидишь рядом."
+        ),
+    },
+    "en": {
+        "free": (
+            "Keep the tone warm and natural: mirror the user's emotions, restate key ideas in clear words and stay concise "
+            "yet lively."
+        ),
+        "basic": (
+            "Maintain a gentle conversational flow: alternate short reassurances with slightly longer reflections, ask soft "
+            "follow-up questions and help the user find their wording."
+        ),
+        "comfort": (
+            "Sound engaged and alive: notice emotional nuances, offer ideas and subtle reminders, and use structured lists "
+            "or light tables when they make things clearer."
+        ),
+        "warm": (
+            "Be the warmest version of Lumi: highlight meaningful details from earlier messages, suggest concrete next steps, "
+            "checklists and words of encouragement, and speak as if you were truly there."
+        ),
+    },
+}
+
+VENT_NOTES: Dict[str, str] = {
+    "ru": (
+        "Системная подсказка: в последнем сообщении много резких слов и мата. Это эмоциональный выплеск, не нападка на "
+        "ассистента. Ответь мягко, помоги человеку выговориться и не акцентируй внимание на факте мата, если в этом нет "
+        "запроса. Если почувствуешь, что злость направляется на тебя, аккуратно обозначь границы."
+    ),
+    "en": (
+        "System note: the last message contains strong language and profanity. It's emotional venting, not an attack on you. "
+        "Respond gently, help the user express themselves and avoid pointing out the profanity unless they ask. If the anger "
+        "shifts toward you, set kind but clear boundaries."
+    ),
+}
+
+SUBSCRIPTION_PHRASES: Dict[str, Dict[str, str]] = {
+    "ru": {
+        "header_active": "Активные подписки:",
+        "header_all": "Состояние подписок:",
+        "none_active": "Активных подписок нет.",
+        "none_all": "Пока нет данных о пользователях.",
+        "remaining": "осталось",
+        "expired": "истекло",
+        "ago": "назад",
+        "permanent": "бессрочно",
+        "no_date": "дата не указана",
+        "method": "метод",
+        "ref": "реф",
+        "no_method": "метод не указан",
+        "free_left": "осталось {count} сообщений в триале",
+        "free_none": "бесплатный лимит израсходован",
+    },
+    "en": {
+        "header_active": "Active subscriptions:",
+        "header_all": "Subscription overview:",
+        "none_active": "No active subscriptions.",
+        "none_all": "No user data yet.",
+        "remaining": "left",
+        "expired": "expired",
+        "ago": "ago",
+        "permanent": "lifetime",
+        "no_date": "no expiry date",
+        "method": "method",
+        "ref": "ref",
+        "no_method": "method unknown",
+        "free_left": "{count} trial messages left",
+        "free_none": "trial limit exhausted",
+    },
 }
 
 PLAN_CODES = ["basic", "comfort", "warm"]
@@ -468,6 +584,175 @@ def plan_perks(plan_code: str, lang: str) -> List[str]:
     return []
 
 
+def plan_style_hint(plan_code: str, language: Optional[str]) -> Optional[str]:
+    lang_code = (language or DEFAULT_LANGUAGE).lower()
+    hints = PLAN_STYLE_HINTS.get(lang_code) or PLAN_STYLE_HINTS.get(DEFAULT_LANGUAGE)
+    if not hints:
+        return None
+    hint = hints.get(plan_code)
+    if not hint and plan_code != "free":
+        hint = hints.get("free")
+    return str(hint) if hint else None
+
+
+def vent_context_note(chat_id: int) -> Optional[str]:
+    lang = get_language(chat_id)
+    note = VENT_NOTES.get(lang) or VENT_NOTES.get(DEFAULT_LANGUAGE)
+    return str(note) if note else None
+
+
+def parse_iso_datetime(value: object) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, str) and value:
+        try:
+            dt = datetime.fromisoformat(value)
+        except Exception:
+            return None
+    else:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def humanize_timedelta(delta: timedelta, lang: str) -> str:
+    total_seconds = int(abs(delta.total_seconds()))
+    if total_seconds <= 0:
+        total_seconds = 60
+    days = total_seconds // 86400
+    hours = (total_seconds % 86400) // 3600
+    minutes = (total_seconds % 3600) // 60
+    suffix_day = "d" if lang.startswith("en") else "д"
+    suffix_hour = "h" if lang.startswith("en") else "ч"
+    suffix_min = "m" if lang.startswith("en") else "м"
+    parts: List[str] = []
+    if days:
+        parts.append(f"{days}{suffix_day}")
+    if hours:
+        parts.append(f"{hours}{suffix_hour}")
+    if not parts:
+        parts.append(f"{max(1, minutes)}{suffix_min}")
+    return " ".join(parts)
+
+
+def build_subscription_entry(
+        chat_id_str: str,
+        info: Dict[str, object],
+        *,
+        now: datetime,
+        admin_lang: str,
+        phrases: Dict[str, str],
+        show_all: bool,
+) -> Optional[str]:
+    try:
+        chat_id_int = int(chat_id_str)
+    except Exception:
+        chat_id_int = None
+    if chat_id_int is not None:
+        plan_code = active_plan(chat_id_int)
+    else:
+        raw_plan = str(info.get("permanent_plan") or info.get("premium_plan") or "free")
+        plan_code = raw_plan if raw_plan in PLAN_BEHAVIOR else "free"
+    permanent = bool(info.get("permanent_plan"))
+    if not show_all and plan_code == "free" and not permanent:
+        return None
+
+    lang = admin_lang.lower()
+    plan_label = plan_name(plan_code, admin_lang)
+    until_dt = parse_iso_datetime(info.get("premium_until"))
+
+    if permanent:
+        time_text = phrases.get("permanent", "permanent")
+    elif plan_code != "free" and until_dt:
+        delta = until_dt - now
+        if delta.total_seconds() >= 0:
+            time_text = f"{phrases.get('remaining', 'left')} {humanize_timedelta(delta, lang)}"
+        else:
+            span = humanize_timedelta(delta, lang)
+            time_text = f"{phrases.get('expired', 'expired')} {span} {phrases.get('ago', 'ago')}"
+    elif plan_code != "free":
+        time_text = phrases.get("no_date", "no expiry date")
+    else:
+        try:
+            used = int(info.get("free_used", 0))
+        except Exception:
+            used = 0
+        left = max(0, TRIAL_MESSAGES - used)
+        if left > 0:
+            template = phrases.get("free_left", "{count} trial messages left")
+            time_text = template.format(count=left)
+        else:
+            time_text = phrases.get("free_none", "trial limit exhausted")
+
+    payment_method = info.get("premium_payment_method")
+    payment_reference = info.get("premium_payment_reference")
+    method_parts: List[str] = []
+    if payment_method:
+        method_parts.append(f"{phrases.get('method', 'method')}: {payment_method}")
+    elif plan_code != "free" or permanent:
+        method_parts.append(phrases.get("no_method", "method unknown"))
+    if payment_reference:
+        method_parts.append(f"{phrases.get('ref', 'ref')}: {payment_reference}")
+
+    identity = str(chat_id_str)
+    username = info.get("last_username")
+    if username:
+        identity += f" @{username}"
+    full_name = info.get("last_full_name")
+    if full_name:
+        identity += f" | {full_name}"
+
+    details = [time_text] if time_text else []
+    if method_parts:
+        details.append("; ".join(method_parts))
+    details_text = f" ({'; '.join(details)})" if details else ""
+    bullet = "•"
+    return f"{bullet} {identity} — {plan_label}{details_text}"
+
+
+def subscription_overview(show_all: bool, admin_lang: str) -> str:
+    lang_code = admin_lang.lower()
+    phrases = SUBSCRIPTION_PHRASES.get(lang_code) or SUBSCRIPTION_PHRASES.get(DEFAULT_LANGUAGE) or {}
+    now = datetime.now(timezone.utc)
+
+    def sort_key(item: tuple[str, Dict[str, object]]):
+        chat_id_str, info = item
+        try:
+            chat_id_int = int(chat_id_str)
+        except Exception:
+            chat_id_int = None
+        if chat_id_int is not None:
+            plan_code = active_plan(chat_id_int)
+        else:
+            raw_plan = str(info.get("permanent_plan") or info.get("premium_plan") or "free")
+            plan_code = raw_plan if raw_plan in PLAN_BEHAVIOR else "free"
+        permanent = bool(info.get("permanent_plan"))
+        until_dt = parse_iso_datetime(info.get("premium_until")) or datetime.max.replace(tzinfo=timezone.utc)
+        active = plan_code != "free" or permanent
+        numeric_id = chat_id_int if isinstance(chat_id_int, int) else 0
+        return (0 if active else 1, 0 if permanent else 1, until_dt, numeric_id)
+
+    entries: List[str] = []
+    for chat_id_str, info in sorted(users.items(), key=sort_key):
+        entry = build_subscription_entry(
+            chat_id_str,
+            info,
+            now=now,
+            admin_lang=lang_code,
+            phrases=phrases,
+            show_all=show_all,
+        )
+        if entry:
+            entries.append(entry)
+
+    if not entries:
+        return phrases.get("none_all", "No user data yet.") if show_all else phrases.get("none_active", "No active subscriptions.")
+
+    header = phrases.get("header_all", "Subscription overview:") if show_all else phrases.get("header_active", "Active subscriptions:")
+    return header + "\n" + "\n".join(entries)
+
+
 VISION_PROMPTS = {
     "ru": (
         "Проанализируй изображение внимательно. Описывай ключевые объекты и эмоции,"
@@ -533,8 +818,40 @@ def save_state() -> None:
         json.dump(users, f, ensure_ascii=False, indent=2)
 
 
+def touch_user_profile(message) -> None:
+    chat_id = message.chat.id
+    info = U(chat_id)
+    changed = False
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if info.get("last_seen_at") != now_iso:
+        info["last_seen_at"] = now_iso
+        changed = True
+    user = getattr(message, "from_user", None)
+    if user:
+        username = user.username or None
+        if info.get("last_username") != username:
+            info["last_username"] = username
+            changed = True
+        full_name = user.full_name or None
+        if info.get("last_full_name") != full_name:
+            info["last_full_name"] = full_name
+            changed = True
+        first_name = user.first_name or None
+        if info.get("last_first_name") != first_name:
+            info["last_first_name"] = first_name
+            changed = True
+        last_name = user.last_name or None
+        if info.get("last_last_name") != last_name:
+            info["last_last_name"] = last_name
+            changed = True
+    if changed:
+        save_state()
+
+
 def ensure_ready(message) -> bool:
     chat_id = message.chat.id
+
+    touch_user_profile(message)
 
     if not is_language_confirmed(chat_id):
         send_language_choice(chat_id)
@@ -583,6 +900,12 @@ def U(chat_id: int) -> Dict[str, object]:
         "accepted_at": None,
         "free_used": 0,
         "premium_until": None,
+        "premium_plan": None,
+        "premium_source": None,
+        "premium_started_at": None,
+        "premium_payment_method": None,
+        "premium_payment_reference": None,
+        "permanent_plan": None,
         "language": DEFAULT_LANGUAGE,
         "history": [],
         "news_opt_out": False,
@@ -591,12 +914,32 @@ def U(chat_id: int) -> Dict[str, object]:
         "offer_remind_at": None,   # <- НОВОЕ
         "abuse_strikes": 0,
         "lyrics_expected": False,
+        "last_seen_at": None,
+        "last_username": None,
+        "last_first_name": None,
+        "last_last_name": None,
+        "last_full_name": None,
+        "last_vent_at": None,
+        "last_vent_note": None,
     })
     info = users[cid]
     info.setdefault("offer_prompted", False)
     info.setdefault("offer_remind_at", None)
     info.setdefault("abuse_strikes", 0)
     info.setdefault("lyrics_expected", False)
+    info.setdefault("premium_plan", None)
+    info.setdefault("premium_source", None)
+    info.setdefault("premium_started_at", None)
+    info.setdefault("premium_payment_method", None)
+    info.setdefault("premium_payment_reference", None)
+    info.setdefault("permanent_plan", None)
+    info.setdefault("last_seen_at", None)
+    info.setdefault("last_username", None)
+    info.setdefault("last_first_name", None)
+    info.setdefault("last_last_name", None)
+    info.setdefault("last_full_name", None)
+    info.setdefault("last_vent_at", None)
+    info.setdefault("last_vent_note", None)
     return info
 
 
@@ -747,13 +1090,25 @@ def has_premium(chat_id: int) -> bool:
     return active_plan(chat_id) != "free"
 
 
-def grant_premium(chat_id: int, days: int, plan_code: str = "basic") -> None:
+def grant_premium(
+        chat_id: int,
+        days: int,
+        plan_code: str = "basic",
+        *,
+        source: Optional[str] = None,
+        payment_method: Optional[str] = None,
+        payment_reference: Optional[str] = None,
+) -> None:
     info = U(chat_id)
     plan = plan_code if plan_code in PLAN_BEHAVIOR and plan_code != "free" else "basic"
     info.pop("permanent_plan", None)
     until = datetime.now(timezone.utc) + timedelta(days=max(1, days))
     info["premium_until"] = until.isoformat()
     info["premium_plan"] = plan
+    info["premium_started_at"] = datetime.now(timezone.utc).isoformat()
+    info["premium_source"] = source or "manual"
+    info["premium_payment_method"] = payment_method or info["premium_source"]
+    info["premium_payment_reference"] = payment_reference
     info["free_used"] = 0
     save_state()
 
@@ -764,6 +1119,10 @@ def grant_permanent_plan(chat_id: int, plan_code: str = BEST_PLAN_CODE) -> None:
     info["permanent_plan"] = plan
     info["premium_plan"] = plan
     info["premium_until"] = datetime.max.replace(tzinfo=timezone.utc).isoformat()
+    info["premium_started_at"] = datetime.now(timezone.utc).isoformat()
+    info["premium_source"] = "permanent"
+    info["premium_payment_method"] = "permanent"
+    info["premium_payment_reference"] = None
     info["free_used"] = 0
     save_state()
 
@@ -979,6 +1338,7 @@ def ask_openai(
         plan: str = "free",
         system_override: Optional[str] = None,
         history_override: Optional[List[Dict[str, str]]] = None,
+        context_note: Optional[str] = None,
 ) -> str:
     lang = (language or DEFAULT_LANGUAGE).lower()
     preset = language_preset(lang)
@@ -989,6 +1349,8 @@ def ask_openai(
     history_limit = int(behavior.get("history_limit", DEFAULT_HISTORY_LIMIT))
     temperature = float(behavior.get("temperature", 0.6))
     max_tokens = int(behavior.get("max_tokens", 300))
+    presence_penalty = float(behavior.get("presence_penalty", 0.0))
+    frequency_penalty = float(behavior.get("frequency_penalty", 0.0))
     if history_limit <= 0:
         history_limit = DEFAULT_HISTORY_LIMIT
     if max_tokens < 150:
@@ -1001,6 +1363,11 @@ def ask_openai(
         {"role": "system", "content": system_message},
     ]
     effective_history = history_override if history_override is not None else history
+    style_hint = plan_style_hint(plan, language)
+    if style_hint:
+        messages.append({"role": "system", "content": style_hint})
+    if context_note:
+        messages.append({"role": "system", "content": context_note})
     if effective_history:
         messages.extend(effective_history[-history_limit * 2:])
     messages.append({"role": "user", "content": prompt})
@@ -1010,6 +1377,8 @@ def ask_openai(
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
+        "presence_penalty": presence_penalty,
+        "frequency_penalty": frequency_penalty,
     }
 
     try:
@@ -1334,8 +1703,28 @@ def cmd_language(message):
     )
 
 
+@bot.message_handler(commands=["subs"])
+def cmd_subscriptions(message):
+    touch_user_profile(message)
+    if not is_admin(message.from_user.id):
+        bot.reply_to(message, lang_text(message.chat.id, "grant_best_denied"))
+        return
+
+    tokens = message.text.split()
+    show_all = False
+    if len(tokens) > 1:
+        arg = tokens[1].lower()
+        show_all = arg in {"all", "все", "all/", "all."}
+
+    admin_lang = get_language(message.chat.id)
+    overview = subscription_overview(show_all, admin_lang)
+    for chunk in _chunk_text(overview):
+        bot.reply_to(message, chunk)
+
+
 @bot.message_handler(commands=["grant"])
 def cmd_grant(message):
+    touch_user_profile(message)
     if not is_admin(message.from_user.id):
         bot.reply_to(message, lang_text(message.chat.id, "grant_best_denied"))
         return
@@ -1343,10 +1732,20 @@ def cmd_grant(message):
     tokens = message.text.split()[1:]
     plan_code: Optional[str] = None
     days: Optional[int] = None
+    payment_method: Optional[str] = None
+    payment_reference: Optional[str] = None
     for token in tokens:
         low = token.lower()
         if low in PLAN_CODES:
             plan_code = low
+        elif low.startswith("pay=") or low.startswith("method="):
+            _, _, raw = token.partition("=")
+            if raw:
+                payment_method = raw
+        elif low.startswith("ref=") or low.startswith("id="):
+            _, _, raw = token.partition("=")
+            if raw:
+                payment_reference = raw
         else:
             try:
                 days = int(low)
@@ -1356,7 +1755,14 @@ def cmd_grant(message):
     plan_code = plan_code or "basic"
     default_days = PLANS.get(plan_code, {}).get("days", 30)
     days = days if days and days > 0 else int(default_days)
-    grant_premium(message.chat.id, days, plan_code)
+    grant_premium(
+        message.chat.id,
+        days,
+        plan_code,
+        source="admin_grant",
+        payment_method=payment_method or "admin_grant",
+        payment_reference=payment_reference,
+    )
     bot.reply_to(
         message,
         lang_text(
@@ -1601,8 +2007,13 @@ def any_text(message):
         bot.send_message(message.chat.id, lang_text(message.chat.id, key))
         return
 
+    vent_note = None
     if has_general_profanity(text):
-        bot.send_message(message.chat.id, lang_text(message.chat.id, "vent_ok"))
+        info["last_vent_at"] = datetime.now(timezone.utc).isoformat()
+        info["last_vent_note"] = "general"
+        vent_note = vent_context_note(message.chat.id)
+    else:
+        info["last_vent_note"] = None
 
     plan_code = active_plan(message.chat.id)
     is_premium = plan_code != "free"
@@ -1620,7 +2031,7 @@ def any_text(message):
     history = list(info.get("history") or [])
     lang = get_language(message.chat.id)
     history_limit = int(plan_behavior(plan_code).get("history_limit", DEFAULT_HISTORY_LIMIT))
-    reply = ask_openai(text, language=lang, history=history, plan=plan_code)
+    reply = ask_openai(text, language=lang, history=history, plan=plan_code, context_note=vent_note)
     history.append({"role": "user", "content": text})
     history.append({"role": "assistant", "content": reply})
     if history_limit <= 0:
