@@ -27,6 +27,12 @@ from telebot import types, apihelper
 apihelper.proxy = {"http": None, "https": None}
 from dotenv import load_dotenv
 
+# --- база данных ---
+import psycopg2
+import psycopg2.extras
+DB_URL = os.getenv("DATABASE_URL", "").strip()
+
+
 # ================== ЛОГИ ==================
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 telebot.logger.setLevel(logging.INFO)
