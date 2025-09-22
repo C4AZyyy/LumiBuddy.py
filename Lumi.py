@@ -28,9 +28,13 @@ apihelper.proxy = {"http": None, "https": None}
 from dotenv import load_dotenv
 
 # --- база данных ---
-import psycopg2
-import psycopg2.extras
+# import psycopg2
+# import psycopg2.extras
+import psycopg
+from psycopg.rows import dict_row
+
 DB_URL = os.getenv("DATABASE_URL", "").strip()
+
 
 
 # ================== ЛОГИ ==================
@@ -825,11 +829,9 @@ def language_preset(code: str) -> Dict[str, object]:
 
 
 def load_state() -> None:
-    """Грузим всё из БД в память (для твоего текущего масштаба это ок)."""
     global users
     users = {}
     if not DB_URL:
-        # Фолбэк на файл, если БД не сконфигурена
         try:
             with open(STATE_FILE, "r", encoding="utf-8") as f:
                 users = json.load(f)
@@ -837,7 +839,7 @@ def load_state() -> None:
             users = {}
         return
 
-    with db_conn() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+    with db_conn() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT * FROM users;")
         for r in cur.fetchall():
             cid = str(r["chat_id"])
@@ -849,8 +851,8 @@ def load_state() -> None:
             cid = str(r["chat_id"])
             users.setdefault(cid, {})["history"] = r["history"] or []
 
+
 def save_state() -> None:
-    """Пишем всё из памяти в БД (upsert), плюс сохраняем histories."""
     if not DB_URL:
         with open(STATE_FILE, "w", encoding="utf-8") as f:
             json.dump(users, f, ensure_ascii=False, indent=2)
@@ -894,19 +896,23 @@ def save_state() -> None:
                 bool(info.get("offer_prompted", False)),
                 info.get("offer_remind_at"),
             ))
+
+            # json можно отдавать как питоновский объект — psycopg сам сконвертит,
+            # но надёжнее сериализовать явно:
             cur.execute("""
                 INSERT INTO histories(chat_id, history)
                 VALUES (%s, %s)
-                ON CONFLICT (chat_id) DO UPDATE SET history=EXCLUDED.history;
+                ON CONFLICT (chat_id) DO UPDATE SET history = EXCLUDED.history;
             """, (chat_id, json.dumps(info.get("history") or [])))
+
 
 
 def db_conn():
     if not DB_URL:
-        raise RuntimeError("DATABASE_URL пуст — добавь переменную в Railway (Service → Variables).")
-    conn = psycopg2.connect(DB_URL)   # Railway internal, SSL не нужен
-    conn.autocommit = True
-    return conn
+        raise RuntimeError("DATABASE_URL пуст — добавь его в Variables сервиса бота на Railway.")
+    # для Railway SSL не нужен на внутреннем хосте, autocommit включаем сразу
+    return psycopg.connect(DB_URL, autocommit=True)
+
 
 def db_init():
     with db_conn() as conn, conn.cursor() as cur:
