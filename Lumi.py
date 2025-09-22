@@ -641,6 +641,20 @@ def humanize_timedelta(delta: timedelta, lang: str) -> str:
         parts.append(f"{max(1, minutes)}{suffix_min}")
     return " ".join(parts)
 
+from datetime import datetime, timezone
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+def parse_iso(s: Optional[str]):
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s)
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
 
 def build_subscription_entry(
         chat_id_str: str,
@@ -811,17 +825,81 @@ def language_preset(code: str) -> Dict[str, object]:
 
 
 def load_state() -> None:
+    """Грузим всё из БД в память (для твоего текущего масштаба это ок)."""
     global users
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r", encoding="utf-8") as f:
-            users = json.load(f)
-    else:
-        users = {}
+    users = {}
+    if not DB_URL:
+        # Фолбэк на файл, если БД не сконфигурена
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                users = json.load(f)
+        except Exception:
+            users = {}
+        return
 
+    with db_conn() as conn, conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute("SELECT * FROM users;")
+        for r in cur.fetchall():
+            cid = str(r["chat_id"])
+            users[cid] = dict(r)
+            users[cid].setdefault("history", [])
+
+        cur.execute("SELECT chat_id, history FROM histories;")
+        for r in cur.fetchall():
+            cid = str(r["chat_id"])
+            users.setdefault(cid, {})["history"] = r["history"] or []
 
 def save_state() -> None:
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
+    """Пишем всё из памяти в БД (upsert), плюс сохраняем histories."""
+    if not DB_URL:
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(users, f, ensure_ascii=False, indent=2)
+        return
+
+    with db_conn() as conn, conn.cursor() as cur:
+        for cid, info in users.items():
+            chat_id = int(cid)
+            cur.execute("""
+                INSERT INTO users(
+                    chat_id, language, policy_shown, accepted_at, free_used,
+                    premium_plan, premium_until, permanent_plan,
+                    news_opt_out, news_opted_at, last_support,
+                    offer_prompted, offer_remind_at
+                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT (chat_id) DO UPDATE SET
+                    language=EXCLUDED.language,
+                    policy_shown=EXCLUDED.policy_shown,
+                    accepted_at=EXCLUDED.accepted_at,
+                    free_used=EXCLUDED.free_used,
+                    premium_plan=EXCLUDED.premium_plan,
+                    premium_until=EXCLUDED.premium_until,
+                    permanent_plan=EXCLUDED.permanent_plan,
+                    news_opt_out=EXCLUDED.news_opt_out,
+                    news_opted_at=EXCLUDED.news_opted_at,
+                    last_support=EXCLUDED.last_support,
+                    offer_prompted=EXCLUDED.offer_prompted,
+                    offer_remind_at=EXCLUDED.offer_remind_at;
+            """, (
+                chat_id,
+                info.get("language") or DEFAULT_LANGUAGE,
+                bool(info.get("policy_shown", False)),
+                info.get("accepted_at"),
+                int(info.get("free_used", 0)),
+                info.get("premium_plan"),
+                info.get("premium_until"),
+                info.get("permanent_plan"),
+                bool(info.get("news_opt_out", False)),
+                info.get("news_opted_at"),
+                info.get("last_support"),
+                bool(info.get("offer_prompted", False)),
+                info.get("offer_remind_at"),
+            ))
+            cur.execute("""
+                INSERT INTO histories(chat_id, history)
+                VALUES (%s, %s)
+                ON CONFLICT (chat_id) DO UPDATE SET history=EXCLUDED.history;
+            """, (chat_id, json.dumps(info.get("history") or [])))
+
 
 def db_conn():
     if not DB_URL:
@@ -2164,11 +2242,13 @@ def cmd_accept(message):
 # ================== ЗАПУСК ==================
 def main() -> None:
     print(">>> starting Lumi…", flush=True)
+    db_init()
     load_state()
     if WEBHOOK_URL and WEBHOOK_PORT:
         start_webhook()
     else:
         start_polling()
+
 
 
 if __name__ == "__main__":
