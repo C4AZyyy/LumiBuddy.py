@@ -32,7 +32,7 @@ DB_URL = os.getenv("DATABASE_URL", "").strip()
 
 try:
     if DB_URL:
-        import psycopg
+        import psycopg  # импортнётся только когда переменная БД задана
         from psycopg.rows import dict_row
     else:
         psycopg = None
@@ -40,6 +40,7 @@ try:
 except Exception:
     psycopg = None
     dict_row = None
+
 
 
 
@@ -916,14 +917,16 @@ def save_state() -> None:
 
 def db_conn():
     if not DB_URL:
-        raise RuntimeError("DATABASE_URL пуст — добавь его в Variables сервиса.")
+        raise RuntimeError("DATABASE_URL пуст — работаю в файловом режиме (users.json).")
     if psycopg is None:
         raise RuntimeError("psycopg не установлен.")
     return psycopg.connect(DB_URL, autocommit=True)
 
 
-
 def db_init():
+    # если БД нет или psycopg недоступен — пропускаем инициализацию
+    if not DB_URL or psycopg is None:
+        return
     with db_conn() as conn, conn.cursor() as cur:
         cur.execute("""
         CREATE TABLE IF NOT EXISTS users(
@@ -948,6 +951,7 @@ def db_init():
           history JSON NOT NULL DEFAULT '[]'
         );
         """)
+
 
 
 def touch_user_profile(message) -> None:
@@ -2257,12 +2261,16 @@ def cmd_accept(message):
 # ================== ЗАПУСК ==================
 def main() -> None:
     print(">>> starting Lumi…", flush=True)
-    db_init()
+    if DB_URL and psycopg is not None:
+        db_init()          # режим с Postgres
+    else:
+        print(">>> DB disabled: file mode (users.json)", flush=True)
     load_state()
     if WEBHOOK_URL and WEBHOOK_PORT:
         start_webhook()
     else:
         start_polling()
+
 
 
 
