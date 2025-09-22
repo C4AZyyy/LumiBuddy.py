@@ -28,12 +28,19 @@ apihelper.proxy = {"http": None, "https": None}
 from dotenv import load_dotenv
 
 # --- база данных ---
-# import psycopg2
-# import psycopg2.extras
-import psycopg
-from psycopg.rows import dict_row
-
 DB_URL = os.getenv("DATABASE_URL", "").strip()
+
+try:
+    if DB_URL:
+        import psycopg
+        from psycopg.rows import dict_row
+    else:
+        psycopg = None
+        dict_row = None
+except Exception:
+    psycopg = None
+    dict_row = None
+
 
 
 
@@ -909,9 +916,11 @@ def save_state() -> None:
 
 def db_conn():
     if not DB_URL:
-        raise RuntimeError("DATABASE_URL пуст — добавь его в Variables сервиса бота на Railway.")
-    # для Railway SSL не нужен на внутреннем хосте, autocommit включаем сразу
+        raise RuntimeError("DATABASE_URL пуст — добавь его в Variables сервиса.")
+    if psycopg is None:
+        raise RuntimeError("psycopg не установлен.")
     return psycopg.connect(DB_URL, autocommit=True)
+
 
 
 def db_init():
