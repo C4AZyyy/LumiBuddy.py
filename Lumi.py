@@ -823,6 +823,39 @@ def save_state() -> None:
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(users, f, ensure_ascii=False, indent=2)
 
+def db_conn():
+    if not DB_URL:
+        raise RuntimeError("DATABASE_URL пуст — добавь переменную в Railway (Service → Variables).")
+    conn = psycopg2.connect(DB_URL)   # Railway internal, SSL не нужен
+    conn.autocommit = True
+    return conn
+
+def db_init():
+    with db_conn() as conn, conn.cursor() as cur:
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS users(
+          chat_id        BIGINT PRIMARY KEY,
+          language       TEXT NOT NULL DEFAULT 'ru',
+          policy_shown   BOOLEAN NOT NULL DEFAULT FALSE,
+          accepted_at    TEXT,
+          free_used      INTEGER NOT NULL DEFAULT 0,
+          premium_plan   TEXT,
+          premium_until  TEXT,
+          permanent_plan TEXT,
+          news_opt_out   BOOLEAN NOT NULL DEFAULT FALSE,
+          news_opted_at  TEXT,
+          last_support   TEXT,
+          offer_prompted BOOLEAN NOT NULL DEFAULT FALSE,
+          offer_remind_at TEXT
+        );
+        """)
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS histories(
+          chat_id BIGINT PRIMARY KEY,
+          history JSON NOT NULL DEFAULT '[]'
+        );
+        """)
+
 
 def touch_user_profile(message) -> None:
     chat_id = message.chat.id
