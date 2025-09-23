@@ -18,6 +18,9 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Pattern
 
+from db_adapter import get_store
+store = get_store()
+
 # --- сети/бот ---
 import requests
 requests.sessions.Session.trust_env = False  # игнорировать прокси из окружения
@@ -860,98 +863,17 @@ def load_state() -> None:
             users.setdefault(cid, {})["history"] = r["history"] or []
 
 
-def save_state() -> None:
-    if not DB_URL:
-        with open(STATE_FILE, "w", encoding="utf-8") as f:
-            json.dump(users, f, ensure_ascii=False, indent=2)
-        return
-
-    with db_conn() as conn, conn.cursor() as cur:
-        for cid, info in users.items():
-            chat_id = int(cid)
-            cur.execute("""
-                INSERT INTO users(
-                    chat_id, language, policy_shown, accepted_at, free_used,
-                    premium_plan, premium_until, permanent_plan,
-                    news_opt_out, news_opted_at, last_support,
-                    offer_prompted, offer_remind_at
-                ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                ON CONFLICT (chat_id) DO UPDATE SET
-                    language=EXCLUDED.language,
-                    policy_shown=EXCLUDED.policy_shown,
-                    accepted_at=EXCLUDED.accepted_at,
-                    free_used=EXCLUDED.free_used,
-                    premium_plan=EXCLUDED.premium_plan,
-                    premium_until=EXCLUDED.premium_until,
-                    permanent_plan=EXCLUDED.permanent_plan,
-                    news_opt_out=EXCLUDED.news_opt_out,
-                    news_opted_at=EXCLUDED.news_opted_at,
-                    last_support=EXCLUDED.last_support,
-                    offer_prompted=EXCLUDED.offer_prompted,
-                    offer_remind_at=EXCLUDED.offer_remind_at;
-            """, (
-                chat_id,
-                info.get("language") or DEFAULT_LANGUAGE,
-                bool(info.get("policy_shown", False)),
-                info.get("accepted_at"),
-                int(info.get("free_used", 0)),
-                info.get("premium_plan"),
-                info.get("premium_until"),
-                info.get("permanent_plan"),
-                bool(info.get("news_opt_out", False)),
-                info.get("news_opted_at"),
-                info.get("last_support"),
-                bool(info.get("offer_prompted", False)),
-                info.get("offer_remind_at"),
-            ))
-
-            # json можно отдавать как питоновский объект — psycopg сам сконвертит,
-            # но надёжнее сериализовать явно:
-            cur.execute("""
-                INSERT INTO histories(chat_id, history)
-                VALUES (%s, %s)
-                ON CONFLICT (chat_id) DO UPDATE SET history = EXCLUDED.history;
-            """, (chat_id, json.dumps(info.get("history") or [])))
-
-
-
-def db_conn():
-    if not DB_URL:
-        raise RuntimeError("DATABASE_URL пуст — работаю в файловом режиме (users.json).")
-    if psycopg is None:
-        raise RuntimeError("psycopg не установлен.")
-    return psycopg.connect(DB_URL, autocommit=True)
-
-
+# === DB ADAPTER ===
 def db_init():
-    # если БД нет или psycopg недоступен — пропускаем инициализацию
-    if not DB_URL or psycopg is None:
-        return
-    with db_conn() as conn, conn.cursor() as cur:
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS users(
-          chat_id        BIGINT PRIMARY KEY,
-          language       TEXT NOT NULL DEFAULT 'ru',
-          policy_shown   BOOLEAN NOT NULL DEFAULT FALSE,
-          accepted_at    TEXT,
-          free_used      INTEGER NOT NULL DEFAULT 0,
-          premium_plan   TEXT,
-          premium_until  TEXT,
-          permanent_plan TEXT,
-          news_opt_out   BOOLEAN NOT NULL DEFAULT FALSE,
-          news_opted_at  TEXT,
-          last_support   TEXT,
-          offer_prompted BOOLEAN NOT NULL DEFAULT FALSE,
-          offer_remind_at TEXT
-        );
-        """)
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS histories(
-          chat_id BIGINT PRIMARY KEY,
-          history JSON NOT NULL DEFAULT '[]'
-        );
-        """)
+    store.init_schema()
 
+def load_state() -> None:
+    global users
+    users = store.load_all()
+
+def save_state() -> None:
+    store.save_all(users)
+# ===================
 
 
 def touch_user_profile(message) -> None:
@@ -2261,15 +2183,18 @@ def cmd_accept(message):
 # ================== ЗАПУСК ==================
 def main() -> None:
     print(">>> starting Lumi…", flush=True)
-    if DB_URL and psycopg is not None:
-        db_init()          # режим с Postgres
-    else:
-        print(">>> DB disabled: file mode (users.json)", flush=True)
-    load_state()
-    if WEBHOOK_URL and WEBHOOK_PORT:
-        start_webhook()
-    else:
-        start_polling()
+db_init()
+if store.is_db():
+    print(">>> DB: Postgres", flush=True)
+else:
+    print(">>> DB disabled: file mode (users.json)", flush=True)
+
+load_state()
+if WEBHOOK_URL and WEBHOOK_PORT:
+    start_webhook()
+else:
+    start_polling()
+
 
 
 
