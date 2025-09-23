@@ -2155,19 +2155,34 @@ def cmd_accept(message):
     bot.send_message(message.chat.id, lang_text(message.chat.id, "thank_you"))
 
 # ================== ЗАПУСК ==================
+
+def auto_migrate_file_to_db():
+    from db_adapter import FileStore
+    try:
+        if store.is_db() and os.path.exists(STATE_FILE):
+            data = FileStore(STATE_FILE).load_all()
+            if data:
+                store.save_all(data)
+                os.rename(STATE_FILE, STATE_FILE + ".migrated")
+                print(f">>> migrated {len(data)} users from file to Postgres", flush=True)
+    except Exception as e:
+        print(f">>> auto-migrate failed: {e}", flush=True)
+
+
 def main() -> None:
     print(">>> starting Lumi…", flush=True)
     db_init()
+    auto_migrate_file_to_db()  # <-- добавь ЭТУ строку
     if store.is_db():
         print(">>> DB: Postgres", flush=True)
     else:
         print(f">>> DB disabled: file mode ({STATE_FILE})", flush=True)
-
     load_state()
     if WEBHOOK_URL and WEBHOOK_PORT:
         start_webhook()
     else:
         start_polling()
+
 
 if __name__ == "__main__":
     main()
