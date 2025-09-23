@@ -31,21 +31,16 @@ apihelper.proxy = {"http": None, "https": None}
 from dotenv import load_dotenv
 
 # --- база данных ---
-DB_URL = os.getenv("DATABASE_URL", "").strip()
+DB_URL = (
+    os.getenv("DATABASE_URL", "").strip()
+    or os.getenv("POSTGRES_URL", "").strip()
+    or os.getenv("PG_URL", "").strip()
+)
 
-try:
-    if DB_URL:
-        import psycopg  # импортнётся только когда переменная БД задана
-        from psycopg.rows import dict_row
-    else:
-        psycopg = None
-        dict_row = None
-except Exception:
-    psycopg = None
-    dict_row = None
-
-
-
+if not DB_URL:
+    pg = {k: os.getenv(k, "") for k in ("PGHOST","PGPORT","PGUSER","PGPASSWORD","PGDATABASE")}
+    if pg["PGHOST"] and pg["PGUSER"] and pg["PGDATABASE"]:
+        DB_URL = f"postgresql://{pg['PGUSER']}:{pg['PGPASSWORD']}@{pg['PGHOST']}:{pg.get('PGPORT','5432')}/{pg['PGDATABASE']}?sslmode=require"
 
 
 # ================== ЛОГИ ==================
