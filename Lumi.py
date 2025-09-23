@@ -838,31 +838,6 @@ def language_preset(code: str) -> Dict[str, object]:
     default_pack = LANGUAGES.get(DEFAULT_LANGUAGE) or next(iter(LANGUAGES.values()))
     return LANGUAGES.get(code, default_pack)  # type: ignore[return-value]
 
-
-def load_state() -> None:
-    global users
-    users = {}
-    if not DB_URL:
-        try:
-            with open(STATE_FILE, "r", encoding="utf-8") as f:
-                users = json.load(f)
-        except Exception:
-            users = {}
-        return
-
-    with db_conn() as conn, conn.cursor(row_factory=dict_row) as cur:
-        cur.execute("SELECT * FROM users;")
-        for r in cur.fetchall():
-            cid = str(r["chat_id"])
-            users[cid] = dict(r)
-            users[cid].setdefault("history", [])
-
-        cur.execute("SELECT chat_id, history FROM histories;")
-        for r in cur.fetchall():
-            cid = str(r["chat_id"])
-            users.setdefault(cid, {})["history"] = r["history"] or []
-
-
 # === DB ADAPTER ===
 def db_init():
     store.init_schema()
@@ -2179,28 +2154,24 @@ def cmd_accept(message):
         pass
     bot.send_message(message.chat.id, lang_text(message.chat.id, "thank_you"))
 
-
 # ================== ЗАПУСК ==================
 def main() -> None:
     print(">>> starting Lumi…", flush=True)
-db_init()
-if store.is_db():
-    print(">>> DB: Postgres", flush=True)
-else:
-    print(">>> DB disabled: file mode (users.json)", flush=True)
+    db_init()
+    if store.is_db():
+        print(">>> DB: Postgres", flush=True)
+    else:
+        print(f">>> DB disabled: file mode ({STATE_FILE})", flush=True)
 
-load_state()
-if WEBHOOK_URL and WEBHOOK_PORT:
-    start_webhook()
-else:
-    start_polling()
-
-
-
-
+    load_state()
+    if WEBHOOK_URL and WEBHOOK_PORT:
+        start_webhook()
+    else:
+        start_polling()
 
 if __name__ == "__main__":
     main()
+
 
 if __name__ == "__main__" and False:  # поменяй на True, если хочешь разово проверить
     r = requests.get("https://api.telegram.org", timeout=10,
