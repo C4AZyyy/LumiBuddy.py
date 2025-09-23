@@ -33,7 +33,8 @@ class FileStore(Store):
         self.path = path
 
     def init_schema(self) -> None:
-        pass  # для файла ничего не нужно
+        # Для файла схемы нет
+        pass
 
     def load_all(self) -> Dict[str, Dict[str, Any]]:
         try:
@@ -68,33 +69,37 @@ class PostgresStore(Store):
 
     def init_schema(self) -> None:
         with self._conn() as conn, conn.cursor() as cur:
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS users(
-              chat_id         BIGINT PRIMARY KEY,
-              language        TEXT NOT NULL DEFAULT 'ru',
-              policy_shown    BOOLEAN NOT NULL DEFAULT FALSE,
-              accepted_at     TEXT,
-              free_used       INTEGER NOT NULL DEFAULT 0,
-              premium_plan    TEXT,
-              premium_until   TEXT,
-              permanent_plan  TEXT,
-              news_opt_out    BOOLEAN NOT NULL DEFAULT FALSE,
-              news_opted_at   TEXT,
-              last_support    TEXT,
-              offer_prompted  BOOLEAN NOT NULL DEFAULT FALSE,
-              offer_remind_at TEXT,
-              last_username   TEXT,
-              last_full_name  TEXT,
-              last_first_name TEXT,
-              last_last_name  TEXT
-            );
-            """)
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS histories(
-              chat_id BIGINT PRIMARY KEY,
-              history JSON NOT NULL DEFAULT '[]'
-            );
-            """)
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users(
+                  chat_id         BIGINT PRIMARY KEY,
+                  language        TEXT NOT NULL DEFAULT 'ru',
+                  policy_shown    BOOLEAN NOT NULL DEFAULT FALSE,
+                  accepted_at     TEXT,
+                  free_used       INTEGER NOT NULL DEFAULT 0,
+                  premium_plan    TEXT,
+                  premium_until   TEXT,
+                  permanent_plan  TEXT,
+                  news_opt_out    BOOLEAN NOT NULL DEFAULT FALSE,
+                  news_opted_at   TEXT,
+                  last_support    TEXT,
+                  offer_prompted  BOOLEAN NOT NULL DEFAULT FALSE,
+                  offer_remind_at TEXT,
+                  last_username   TEXT,
+                  last_full_name  TEXT,
+                  last_first_name TEXT,
+                  last_last_name  TEXT
+                );
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS histories(
+                  chat_id BIGINT PRIMARY KEY,
+                  history JSONB NOT NULL DEFAULT '[]'::jsonb
+                );
+                """
+            )
 
     def load_all(self) -> Dict[str, Dict[str, Any]]:
         from psycopg.rows import dict_row
@@ -116,7 +121,8 @@ class PostgresStore(Store):
         with self._conn() as conn, conn.cursor() as cur:
             for cid, info in users.items():
                 chat_id = int(cid)
-                cur.execute("""
+                cur.execute(
+                    """
                     INSERT INTO users(
                         chat_id, language, policy_shown, accepted_at, free_used,
                         premium_plan, premium_until, permanent_plan,
@@ -132,3 +138,44 @@ class PostgresStore(Store):
                         premium_plan=EXCLUDED.premium_plan,
                         premium_until=EXCLUDED.premium_until,
                         permanent_plan=EXCLUDED.permanent_plan,
+                        news_opt_out=EXCLUDED.news_opt_out,
+                        news_opted_at=EXCLUDED.news_opted_at,
+                        last_support=EXCLUDED.last_support,
+                        offer_prompted=EXCLUDED.offer_prompted,
+                        offer_remind_at=EXCLUDED.offer_remind_at,
+                        last_username=EXCLUDED.last_username,
+                        last_full_name=EXCLUDED.last_full_name,
+                        last_first_name=EXCLUDED.last_first_name,
+                        last_last_name=EXCLUDED.last_last_name;
+                    """,
+                    (
+                        chat_id,
+                        info.get("language") or "ru",
+                        bool(info.get("policy_shown", False)),
+                        info.get("accepted_at"),
+                        int(info.get("free_used", 0)),
+                        info.get("premium_plan"),
+                        info.get("premium_until"),
+                        info.get("permanent_plan"),
+                        bool(info.get("news_opt_out", False)),
+                        info.get("news_opted_at"),
+                        info.get("last_support"),
+                        bool(info.get("offer_prompted", False)),
+                        info.get("offer_remind_at"),
+                        info.get("last_username"),
+                        info.get("last_full_name"),
+                        info.get("last_first_name"),
+                        info.get("last_last_name"),
+                    ),
+                )
+                cur.execute(
+                    """
+                    INSERT INTO histories(chat_id, history)
+                    VALUES (%s, %s)
+                    ON CONFLICT (chat_id) DO UPDATE SET history = EXCLUDED.history;
+                    """,
+                    (chat_id, _json.dumps(info.get("history") or [])),
+                )
+
+    def is_db(self) -> bool:
+        return True
