@@ -826,8 +826,29 @@ FALLBACK = {
 }
 
 # ================== СОСТОЯНИЕ ==================
+# ================== СОСТОЯНИЕ ==================
 users: Dict[str, Dict[str, object]] = {}
 
+def load_state() -> None:
+    global users
+    rows = store.load_all()  # список словарей
+    mapping: Dict[str, Dict[str, object]] = {}
+    for r in rows or []:
+        cid = r.get("chat_id")
+        if cid is None:
+            continue
+        key = str(int(cid))
+        mapping[key] = {k: v for k, v in r.items() if k != "chat_id"}
+    users = mapping
+
+def save_state() -> None:
+    # преобразуем обратно в список для DbStore/FileStore
+    rows: List[Dict[str, object]] = []
+    for cid, info in (users or {}).items():
+        row = {"chat_id": int(cid)}
+        row.update(info or {})
+        rows.append(row)
+    store.save_all(rows)
 
 def language_preset(code: str) -> Dict[str, object]:
     default_pack = LANGUAGES.get(DEFAULT_LANGUAGE) or next(iter(LANGUAGES.values()))
@@ -845,12 +866,7 @@ def main() -> None:
     ...
 
 
-def load_state() -> None:
-    global users
-    users = store.load_all()
 
-def save_state() -> None:
-    store.save_all(users)
 # ===================
 
 
@@ -1680,43 +1696,27 @@ def start_polling() -> None:
             time.sleep(3)
 
 
-def start_webhook() -> None:
+@app.route(WEBHOOK_PATH, methods=["POST"])
+def telegram_webhook():
+    if WEBHOOK_SECRET:
+        from flask import abort, request
+        secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+        if secret != WEBHOOK_SECRET:
+            abort(403)
+
+    from flask import abort, request
     try:
-        bot.remove_webhook()
+        # читаем тело целиком как текст (без двойного чтения stream)
+        update_json = request.get_data(cache=False, as_text=True)
+        print("<<< UPDATE:", (update_json or "")[:800], flush=True)
+        update = telebot.types.Update.de_json(update_json)
     except Exception as exc:
-        logging.warning("remove_webhook failed: %r", exc)
-    full_url = WEBHOOK_URL.rstrip("/") + WEBHOOK_PATH
-    print(f">>> webhook set to {full_url}", flush=True)
-    try:
-        bot.set_webhook(url=full_url, secret_token=WEBHOOK_SECRET)
-    except Exception as exc:
-        logging.exception("Failed to set webhook: %r", exc)
-        raise
+        logging.exception("Invalid update: %r", exc)
+        abort(400)
 
-    from flask import Flask, abort, request
+    bot.process_new_updates([update])
+    return "ok", 200
 
-    app = Flask(__name__)
-
-    @app.route(WEBHOOK_PATH, methods=["POST"])
-    def telegram_webhook():
-        if WEBHOOK_SECRET:
-            secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
-            if secret != WEBHOOK_SECRET:
-                abort(403)
-                # внутри telegram_webhook()
-        try:
-            update_json = request.stream.read().decode("utf-8")
-            print("<<< UPDATE:", update_json[:800], flush=True)  # <-- добавь эту строку
-            update = telebot.types.Update.de_json(update_json)
-        except Exception as exc:
-        try:
-            update_json = request.stream.read().decode("utf-8")
-            update = telebot.types.Update.de_json(update_json)
-        except Exception as exc:
-            logging.exception("Invalid update: %r", exc)
-            abort(400)
-        bot.process_new_updates([update])
-        return "ok", 200
 
     ssl_context = None
     if WEBHOOK_SSL_CERT and WEBHOOK_SSL_KEY:
