@@ -126,6 +126,11 @@ class DbStore:
                 cur.execute("ALTER TABLE users ALTER COLUMN language SET DEFAULT 'ru';")
                 cur.execute("UPDATE users SET language = COALESCE(language, 'ru');")
                 cur.execute("ALTER TABLE users ALTER COLUMN language DROP NOT NULL;")
+                # defaults & backfill for news_opt_out
+                cur.execute("ALTER TABLE users ALTER COLUMN news_opt_out SET DEFAULT FALSE;")
+                cur.execute("UPDATE users SET news_opt_out = COALESCE(news_opt_out, FALSE);")
+                cur.execute("ALTER TABLE users ALTER COLUMN news_opt_out DROP NOT NULL;")
+
             conn.commit()
 
     def load_all(self) -> List[Dict[str, Any]]:
@@ -140,35 +145,50 @@ class DbStore:
         return out
 
     def bulk_upsert_users(self, rows: Iterable[Dict[str, Any]]) -> int:
-        psycopg = self.psycopg
-        default_lang = (os.getenv("DEFAULT_LANGUAGE", "ru") or "ru").lower()
-        count = 0
-        with psycopg.connect(self.url) as conn:
-            with conn.cursor() as cur:
-                for r in rows:
-                    if "chat_id" not in r:
-                        continue
+    psycopg = self.psycopg
+    default_lang = (os.getenv("DEFAULT_LANGUAGE", "ru") or "ru").lower()
+    count = 0
+    with psycopg.connect(self.url) as conn:
+        with conn.cursor() as cur:
+            for r in rows:
+                if "chat_id" not in r:
+                    continue
 
-                    # sensible defaults to avoid NOT NULL / type issues
-                    if not r.get("language"):
-                        r["language"] = default_lang
-                    if r.get("history") is None:
-                        r["history"] = []  # jsonb
+                # --- sane defaults ---
+                if not r.get("language"):
+                    r["language"] = default_lang
 
-                    cols = list(r.keys())
-                    vals = [r[k] for k in cols]
-                    placeholders = ", ".join(["%s"] * len(vals))
-                    columns = ", ".join(cols)
-                    updates = ", ".join([f"{k}=EXCLUDED.{k}" for k in cols if k != "chat_id"])
+                # bools: NULL -> False
+                for b in ("policy_shown", "offer_prompted", "lyrics_expected", "news_opt_out"):
+                    if r.get(b) is None:
+                        r[b] = False
 
-                    cur.execute(
-                        f"INSERT INTO users ({columns}) VALUES ({placeholders}) "
-                        f"ON CONFLICT (chat_id) DO UPDATE SET {updates};",
-                        vals,
-                    )
-                    count += 1
-            conn.commit()
-        return count
+                # ints: NULL -> 0
+                for i in ("free_used", "abuse_strikes"):
+                    if r.get(i) is None:
+                        r[i] = 0
+
+                # jsonb history: гарантируем список
+                h = r.get("history")
+                if h is None or isinstance(h, dict):
+                    r["history"] = []
+
+                # --- upsert as before ---
+                cols = list(r.keys())
+                vals = [r[k] for k in cols]
+                placeholders = ", ".join(["%s"] * len(vals))
+                columns = ", ".join(cols)
+                updates = ", ".join([f"{k}=EXCLUDED.{k}" for k in cols if k != "chat_id"])
+
+                cur.execute(
+                    f"INSERT INTO users ({columns}) VALUES ({placeholders}) "
+                    f"ON CONFLICT (chat_id) DO UPDATE SET {updates};",
+                    vals,
+                )
+                count += 1
+        conn.commit()
+    return count
+
 
     # compatibility with code calling store.save_all(...)
     def save_all(self, users: List[Dict[str, Any]]) -> None:
