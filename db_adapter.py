@@ -1,181 +1,128 @@
-# db_adapter.py
-from __future__ import annotations
-import os, json, logging
-from typing import Dict, Any
+с# db_adapter.py
+import os
+import json
+from typing import Optional, Dict, Any, Iterable
 
 DB_URL = os.getenv("DATABASE_URL", "").strip()
-STATE_FILE = os.getenv("STATE_FILE", "users.json")
 
-
-class Store:
-    def init_schema(self) -> None: ...
-    def load_all(self) -> Dict[str, Dict[str, Any]]: ...
-    def save_all(self, users: Dict[str, Dict[str, Any]]) -> None: ...
-    def is_db(self) -> bool: ...
-
-
-def get_store() -> Store:
-    """Выбирает Postgres при наличии DATABASE_URL, иначе — файл."""
-    if DB_URL:
-        try:
-            import psycopg  # noqa: F401
-        except Exception as e:
-            logging.warning("psycopg не доступен, перехожу в файловый режим: %r", e)
-            return FileStore(STATE_FILE)
-        return PostgresStore(DB_URL)
-    return FileStore(STATE_FILE)
-
-
-# ---------- Файловое хранилище ----------
-
-class FileStore(Store):
-    def __init__(self, path: str):
-        self.path = path
-
-    def init_schema(self) -> None:
-        # Для файла схемы нет
-        pass
-
-    def load_all(self) -> Dict[str, Dict[str, Any]]:
-        try:
-            with open(self.path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            for v in data.values():
-                v.setdefault("history", [])
-            return data
-        except Exception:
-            return {}
-
-    def save_all(self, users: Dict[str, Dict[str, Any]]) -> None:
-        try:
-            with open(self.path, "w", encoding="utf-8") as f:
-                json.dump(users, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logging.exception("FileStore save error: %r", e)
+# --- Лёгкий файловый стор ---
+class FileStore:
+    def __init__(self, path: str = None):
+        self.path = path or os.getenv("STATE_FILE", "users.json")
 
     def is_db(self) -> bool:
         return False
 
-
-# ---------- Postgres ----------
-
-class PostgresStore(Store):
-    def __init__(self, dsn: str):
-        self.dsn = dsn
-
-    def _conn(self):
-        import psycopg
-        return psycopg.connect(self.dsn, autocommit=True)
-
     def init_schema(self) -> None:
-        with self._conn() as conn, conn.cursor() as cur:
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users(
-                  chat_id         BIGINT PRIMARY KEY,
-                  language        TEXT NOT NULL DEFAULT 'ru',
-                  policy_shown    BOOLEAN NOT NULL DEFAULT FALSE,
-                  accepted_at     TEXT,
-                  free_used       INTEGER NOT NULL DEFAULT 0,
-                  premium_plan    TEXT,
-                  premium_until   TEXT,
-                  permanent_plan  TEXT,
-                  news_opt_out    BOOLEAN NOT NULL DEFAULT FALSE,
-                  news_opted_at   TEXT,
-                  last_support    TEXT,
-                  offer_prompted  BOOLEAN NOT NULL DEFAULT FALSE,
-                  offer_remind_at TEXT,
-                  last_username   TEXT,
-                  last_full_name  TEXT,
-                  last_first_name TEXT,
-                  last_last_name  TEXT
-                );
-                """
-            )
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS histories(
-                  chat_id BIGINT PRIMARY KEY,
-                  history JSONB NOT NULL DEFAULT '[]'::jsonb
-                );
-                """
-            )
+        pass  # для файла не нужно
 
-    def load_all(self) -> Dict[str, Dict[str, Any]]:
-        from psycopg.rows import dict_row
-        data: Dict[str, Dict[str, Any]] = {}
-        with self._conn() as conn, conn.cursor(row_factory=dict_row) as cur:
-            cur.execute("SELECT * FROM users;")
-            for r in cur.fetchall():
-                cid = str(r["chat_id"])
-                data[cid] = dict(r)
-                data[cid].setdefault("history", [])
-            cur.execute("SELECT chat_id, history FROM histories;")
-            for r in cur.fetchall():
-                cid = str(r["chat_id"])
-                data.setdefault(cid, {})["history"] = r["history"] or []
-        return data
+    def load_users_from_file(self) -> Iterable[Dict[str, Any]]:
+        if not os.path.exists(self.path):
+            return []
+        with open(self.path, "r", encoding="utf-8") as f:
+            try:
+                data = json.load(f)
+            except Exception:
+                data = {}
+        # ожидаем формат {chat_id: {...}}
+        for k, v in data.items():
+            try:
+                chat_id = int(k)
+            except Exception:
+                continue
+            row = {"chat_id": chat_id, **(v or {})}
+            yield row
 
-    def save_all(self, users: Dict[str, Dict[str, Any]]) -> None:
-        import json as _json
-        with self._conn() as conn, conn.cursor() as cur:
-            for cid, info in users.items():
-                chat_id = int(cid)
-                cur.execute(
-                    """
-                    INSERT INTO users(
-                        chat_id, language, policy_shown, accepted_at, free_used,
-                        premium_plan, premium_until, permanent_plan,
-                        news_opt_out, news_opted_at, last_support,
-                        offer_prompted, offer_remind_at,
-                        last_username, last_full_name, last_first_name, last_last_name
-                    ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    ON CONFLICT (chat_id) DO UPDATE SET
-                        language=EXCLUDED.language,
-                        policy_shown=EXCLUDED.policy_shown,
-                        accepted_at=EXCLUDED.accepted_at,
-                        free_used=EXCLUDED.free_used,
-                        premium_plan=EXCLUDED.premium_plan,
-                        premium_until=EXCLUDED.premium_until,
-                        permanent_plan=EXCLUDED.permanent_plan,
-                        news_opt_out=EXCLUDED.news_opt_out,
-                        news_opted_at=EXCLUDED.news_opted_at,
-                        last_support=EXCLUDED.last_support,
-                        offer_prompted=EXCLUDED.offer_prompted,
-                        offer_remind_at=EXCLUDED.offer_remind_at,
-                        last_username=EXCLUDED.last_username,
-                        last_full_name=EXCLUDED.last_full_name,
-                        last_first_name=EXCLUDED.last_first_name,
-                        last_last_name=EXCLUDED.last_last_name;
-                    """,
-                    (
-                        chat_id,
-                        info.get("language") or "ru",
-                        bool(info.get("policy_shown", False)),
-                        info.get("accepted_at"),
-                        int(info.get("free_used", 0)),
-                        info.get("premium_plan"),
-                        info.get("premium_until"),
-                        info.get("permanent_plan"),
-                        bool(info.get("news_opt_out", False)),
-                        info.get("news_opted_at"),
-                        info.get("last_support"),
-                        bool(info.get("offer_prompted", False)),
-                        info.get("offer_remind_at"),
-                        info.get("last_username"),
-                        info.get("last_full_name"),
-                        info.get("last_first_name"),
-                        info.get("last_last_name"),
-                    ),
-                )
-                cur.execute(
-                    """
-                    INSERT INTO histories(chat_id, history)
-                    VALUES (%s, %s)
-                    ON CONFLICT (chat_id) DO UPDATE SET history = EXCLUDED.history;
-                    """,
-                    (chat_id, _json.dumps(info.get("history") or [])),
-                )
+# --- Postgres стор ---
+class DbStore:
+    def __init__(self, url: str):
+        import psycopg
+        self.psycopg = psycopg
+        self.url = url
 
     def is_db(self) -> bool:
         return True
+
+    def init_schema(self) -> None:
+        psycopg = self.psycopg
+        with psycopg.connect(self.url) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    chat_id BIGINT PRIMARY KEY
+                );
+                """)
+                cur.execute("""
+                ALTER TABLE users
+                  ADD COLUMN IF NOT EXISTS language                   TEXT,
+                  ADD COLUMN IF NOT EXISTS policy_shown               BOOLEAN     DEFAULT FALSE,
+                  ADD COLUMN IF NOT EXISTS accepted_at                TIMESTAMPTZ,
+                  ADD COLUMN IF NOT EXISTS free_used                  INTEGER     DEFAULT 0,
+                  ADD COLUMN IF NOT EXISTS premium_plan               TEXT,
+                  ADD COLUMN IF NOT EXISTS premium_until              TIMESTAMPTZ,
+                  ADD COLUMN IF NOT EXISTS permanent_plan             TEXT,
+                  ADD COLUMN IF NOT EXISTS news_opt_out               BOOLEAN     DEFAULT FALSE,
+                  ADD COLUMN IF NOT EXISTS news_opted_at              TIMESTAMPTZ,
+                  ADD COLUMN IF NOT EXISTS history                    JSONB       DEFAULT '[]'::jsonb,
+                  ADD COLUMN IF NOT EXISTS offer_prompted             BOOLEAN     NOT NULL DEFAULT FALSE,
+                  ADD COLUMN IF NOT EXISTS offer_remind_at            TIMESTAMPTZ NULL,
+                  ADD COLUMN IF NOT EXISTS abuse_strikes              INTEGER     NOT NULL DEFAULT 0,
+                  ADD COLUMN IF NOT EXISTS lyrics_expected            BOOLEAN     NOT NULL DEFAULT FALSE,
+                  ADD COLUMN IF NOT EXISTS last_seen_at               TIMESTAMPTZ NULL,
+                  ADD COLUMN IF NOT EXISTS last_username              TEXT        NULL,
+                  ADD COLUMN IF NOT EXISTS last_first_name            TEXT        NULL,
+                  ADD COLUMN IF NOT EXISTS last_last_name             TEXT        NULL,
+                  ADD COLUMN IF NOT EXISTS last_full_name             TEXT        NULL,
+                  ADD COLUMN IF NOT EXISTS last_vent_at               TIMESTAMPTZ NULL,
+                  ADD COLUMN IF NOT EXISTS last_vent_note             TEXT        NULL,
+                  ADD COLUMN IF NOT EXISTS premium_source             TEXT        NULL,
+                  ADD COLUMN IF NOT EXISTS premium_started_at         TIMESTAMPTZ NULL,
+                  ADD COLUMN IF NOT EXISTS premium_payment_method     TEXT        NULL,
+                  ADD COLUMN IF NOT EXISTS premium_payment_reference  TEXT        NULL
+                ;
+                """)
+            conn.commit()
+
+    def bulk_upsert_users(self, rows: Iterable[Dict[str, Any]]) -> int:
+        # простой upsert: вставка с on conflict
+        psycopg = self.psycopg
+        count = 0
+        with psycopg.connect(self.url) as conn:
+            with conn.cursor() as cur:
+                for r in rows:
+                    chat_id = int(r.get("chat_id"))
+                    # удаляем лишние ключи, которых нет в таблице — можно оставить,
+                    # если ты уверен в колонках
+                    cols = [k for k in r.keys()]
+                    vals = [r[k] for k in cols]
+                    placeholders = ", ".join(["%s"] * len(vals))
+                    columns = ", ".join(cols)
+                    updates = ", ".join([f"{k}=EXCLUDED.{k}" for k in cols if k != "chat_id"])
+                    cur.execute(
+                        f"INSERT INTO users ({columns}) VALUES ({placeholders}) "
+                        f"ON CONFLICT (chat_id) DO UPDATE SET {updates};",
+                        vals
+                    )
+                    count += 1
+            conn.commit()
+        return count
+
+# --- Фабрики/утилиты ---
+def get_store():
+    if DB_URL:
+        return DbStore(DB_URL)
+    return FileStore()
+
+store = get_store()
+
+def db_init():
+    store.init_schema()
+
+def auto_migrate_file_to_db():
+    # если мы в БД — перетащим users.json
+    if isinstance(store, DbStore):
+        file_store = FileStore()
+        rows = list(file_store.load_users_from_file())
+        if rows:
+            inserted = store.bulk_upsert_users(rows)
+            print(f">>> migrated {inserted} users from file to DB")
