@@ -1725,6 +1725,16 @@ def start_webhook() -> None:
     print(f">>> webhook listening on {WEBHOOK_HOST}:{WEBHOOK_PORT}", flush=True)
     app.run(host=WEBHOOK_HOST, port=WEBHOOK_PORT, ssl_context=ssl_context)
 
+# где-нибудь рядом с другими хэндлерами, ВЫШЕ любых общих catch-all
+@bot.message_handler(commands=["ping"])
+def cmd_ping(message):
+    bot.reply_to(message, "pong")
+
+# временный самый простой обработчик текста БЕЗ ensure_ready
+@bot.message_handler(func=lambda m: m.content_type == "text" and m.text.strip().lower() == "ping")
+def txt_ping(message):
+    bot.reply_to(message, "pong-echo")
+
 
 @bot.message_handler(commands=["buy"])
 def cmd_buy(message):
