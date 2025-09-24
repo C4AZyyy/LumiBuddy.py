@@ -112,6 +112,12 @@ class DbStore:
                 """)
             conn.commit()
 
+# сразу после большого ALTER TABLE users ... ADD COLUMN ...
+cur.execute("ALTER TABLE users ALTER COLUMN language SET DEFAULT 'ru';")
+cur.execute("UPDATE users SET language = COALESCE(language, 'ru');")
+cur.execute("ALTER TABLE users ALTER COLUMN language DROP NOT NULL;")
+
+    
     def load_all(self) -> List[Dict[str, Any]]:
         psycopg = self.psycopg
         out: List[Dict[str, Any]] = []
@@ -123,27 +129,37 @@ class DbStore:
                     out.append(dict(zip(cols, row)))
         return out
 
-    def bulk_upsert_users(self, rows: Iterable[Dict[str, Any]]) -> int:
-        psycopg = self.psycopg
-        count = 0
-        with psycopg.connect(self.url) as conn:
-            with conn.cursor() as cur:
-                for r in rows:
-                    if "chat_id" not in r:
-                        continue
-                    cols = list(r.keys())
-                    vals = [r[k] for k in cols]
-                    placeholders = ", ".join(["%s"] * len(vals))
-                    columns = ", ".join(cols)
-                    updates = ", ".join([f"{k}=EXCLUDED.{k}" for k in cols if k != "chat_id"])
-                    cur.execute(
-                        f"INSERT INTO users ({columns}) VALUES ({placeholders}) "
-                        f"ON CONFLICT (chat_id) DO UPDATE SET {updates};",
-                        vals,
-                    )
-                    count += 1
-            conn.commit()
-        return count
+def bulk_upsert_users(self, rows: Iterable[Dict[str, Any]]) -> int:
+    psycopg = self.psycopg
+    default_lang = (os.getenv("DEFAULT_LANGUAGE", "ru") or "ru").lower()
+    count = 0
+    with psycopg.connect(self.url) as conn:
+        with conn.cursor() as cur:
+            for r in rows:
+                if "chat_id" not in r:
+                    continue
+
+                # 🔧 дефолты, чтобы не слать NULL куда не надо
+                if not r.get("language"):
+                    r["language"] = default_lang
+                if r.get("history") is None:
+                    r["history"] = []  # jsonb
+
+                cols = list(r.keys())
+                vals = [r[k] for k in cols]
+                placeholders = ", ".join(["%s"] * len(vals))
+                columns = ", ".join(cols)
+                updates = ", ".join([f"{k}=EXCLUDED.{k}" for k in cols if k != "chat_id"])
+
+                cur.execute(
+                    f"INSERT INTO users ({columns}) VALUES ({placeholders}) "
+                    f"ON CONFLICT (chat_id) DO UPDATE SET {updates};",
+                    vals,
+                )
+                count += 1
+        conn.commit()
+    return count
+
 
     # НОВОЕ: совместимость с кодом, который вызывает store.save_all(...)
     def save_all(self, users: List[Dict[str, Any]]) -> None:
