@@ -1703,6 +1703,12 @@ def start_webhook() -> None:
             secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
             if secret != WEBHOOK_SECRET:
                 abort(403)
+                # внутри telegram_webhook()
+        try:
+            update_json = request.stream.read().decode("utf-8")
+            print("<<< UPDATE:", update_json[:800], flush=True)  # <-- добавь эту строку
+            update = telebot.types.Update.de_json(update_json)
+        except Exception as exc:
         try:
             update_json = request.stream.read().decode("utf-8")
             update = telebot.types.Update.de_json(update_json)
