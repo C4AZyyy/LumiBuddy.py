@@ -45,7 +45,7 @@ class FileStore:
                     out.append(item)
         return out
 
-    # совместимость со старым кодом
+    # совместимость со старым кодом миграции
     def load_users_from_file(self) -> Iterable[Dict[str, Any]]:
         return self.load_all()
 
@@ -122,15 +122,15 @@ class DbStore:
                     """
                 )
 
-                # language safety: default + backfill + allow NULL just in case
+                # language: default + backfill + relax nullability
                 cur.execute("ALTER TABLE users ALTER COLUMN language SET DEFAULT 'ru';")
                 cur.execute("UPDATE users SET language = COALESCE(language, 'ru');")
                 cur.execute("ALTER TABLE users ALTER COLUMN language DROP NOT NULL;")
-                # defaults & backfill for news_opt_out
+
+                # news_opt_out: default + backfill + relax nullability
                 cur.execute("ALTER TABLE users ALTER COLUMN news_opt_out SET DEFAULT FALSE;")
                 cur.execute("UPDATE users SET news_opt_out = COALESCE(news_opt_out, FALSE);")
                 cur.execute("ALTER TABLE users ALTER COLUMN news_opt_out DROP NOT NULL;")
-
             conn.commit()
 
     def load_all(self) -> List[Dict[str, Any]]:
@@ -145,50 +145,48 @@ class DbStore:
         return out
 
     def bulk_upsert_users(self, rows: Iterable[Dict[str, Any]]) -> int:
-    psycopg = self.psycopg
-    default_lang = (os.getenv("DEFAULT_LANGUAGE", "ru") or "ru").lower()
-    count = 0
-    with psycopg.connect(self.url) as conn:
-        with conn.cursor() as cur:
-            for r in rows:
-                if "chat_id" not in r:
-                    continue
+        psycopg = self.psycopg
+        default_lang = (os.getenv("DEFAULT_LANGUAGE", "ru") or "ru").lower()
+        count = 0
+        with psycopg.connect(self.url) as conn:
+            with conn.cursor() as cur:
+                for r in rows:
+                    if "chat_id" not in r:
+                        continue
 
-                # --- sane defaults ---
-                if not r.get("language"):
-                    r["language"] = default_lang
+                    # --- sane defaults to avoid NOT NULL/type issues ---
+                    if not r.get("language"):
+                        r["language"] = default_lang
 
-                # bools: NULL -> False
-                for b in ("policy_shown", "offer_prompted", "lyrics_expected", "news_opt_out"):
-                    if r.get(b) is None:
-                        r[b] = False
+                    # bools: None -> False
+                    for b in ("policy_shown", "offer_prompted", "lyrics_expected", "news_opt_out"):
+                        if r.get(b) is None:
+                            r[b] = False
 
-                # ints: NULL -> 0
-                for i in ("free_used", "abuse_strikes"):
-                    if r.get(i) is None:
-                        r[i] = 0
+                    # ints: None -> 0
+                    for i in ("free_used", "abuse_strikes"):
+                        if r.get(i) is None:
+                            r[i] = 0
 
-                # jsonb history: гарантируем список
-                h = r.get("history")
-                if h is None or isinstance(h, dict):
-                    r["history"] = []
+                    # history: ensure list for jsonb
+                    h = r.get("history")
+                    if h is None or isinstance(h, dict):
+                        r["history"] = []
 
-                # --- upsert as before ---
-                cols = list(r.keys())
-                vals = [r[k] for k in cols]
-                placeholders = ", ".join(["%s"] * len(vals))
-                columns = ", ".join(cols)
-                updates = ", ".join([f"{k}=EXCLUDED.{k}" for k in cols if k != "chat_id"])
+                    cols = list(r.keys())
+                    vals = [r[k] for k in cols]
+                    placeholders = ", ".join(["%s"] * len(vals))
+                    columns = ", ".join(cols)
+                    updates = ", ".join([f"{k}=EXCLUDED.{k}" for k in cols if k != "chat_id"])
 
-                cur.execute(
-                    f"INSERT INTO users ({columns}) VALUES ({placeholders}) "
-                    f"ON CONFLICT (chat_id) DO UPDATE SET {updates};",
-                    vals,
-                )
-                count += 1
-        conn.commit()
-    return count
-
+                    cur.execute(
+                        f"INSERT INTO users ({columns}) VALUES ({placeholders}) "
+                        f"ON CONFLICT (chat_id) DO UPDATE SET {updates};",
+                        vals,
+                    )
+                    count += 1
+            conn.commit()
+        return count
 
     # compatibility with code calling store.save_all(...)
     def save_all(self, users: List[Dict[str, Any]]) -> None:
