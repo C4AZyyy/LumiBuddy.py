@@ -1,7 +1,7 @@
 # db_adapter.py
 import os
 import json
-from typing import Iterable, Dict, Any
+from typing import Iterable, Dict, Any, List
 
 DB_URL = os.getenv("DATABASE_URL", "").strip()
 STATE_FILE = os.getenv("STATE_FILE", "users.json")
@@ -19,22 +19,40 @@ class FileStore:
         # No schema for file mode
         pass
 
-    def load_users_from_file(self) -> Iterable[Dict[str, Any]]:
+    def load_all(self) -> List[Dict[str, Any]]:
+        """
+        Возвращает список словарей пользователей из users.json.
+        Формат ожидается { "<chat_id>": { ... } }.
+        """
         if not os.path.exists(self.path):
             return []
-        with open(self.path, "r", encoding="utf-8") as f:
-            try:
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            except Exception:
-                data = {}
-        # Expected shape: { "123456789": { ...user fields... }, ... }
-        for k, v in data.items():
-            try:
-                chat_id = int(k)
-            except Exception:
-                continue
-            row = {"chat_id": chat_id, **(v or {})}
-            yield row
+        except Exception:
+            data = {}
+
+        out: List[Dict[str, Any]] = []
+        if isinstance(data, dict):
+            for k, v in data.items():
+                try:
+                    chat_id = int(k)
+                except Exception:
+                    continue
+                row = {"chat_id": chat_id}
+                if isinstance(v, dict):
+                    row.update(v)
+                out.append(row)
+        elif isinstance(data, list):
+            # иногда файл уже в виде списка
+            for item in data:
+                if isinstance(item, dict) and "chat_id" in item:
+                    out.append(item)
+        return out
+
+    # Вспомогательная функция, которой пользуется авто-миграция в нашем коде ниже.
+    def load_users_from_file(self) -> Iterable[Dict[str, Any]]:
+        return self.load_all()
 
 
 # ---------- Postgres store ----------
@@ -98,18 +116,41 @@ class DbStore:
                 )
             conn.commit()
 
+    def load_all(self) -> List[Dict[str, Any]]:
+        """
+        Возвращает список словарей пользователей из таблицы users.
+        """
+        psycopg = self.psycopg
+        out: List[Dict[str, Any]] = []
+        with psycopg.connect(self.url) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM users;")
+                cols = [desc.name if hasattr(desc, "name") else desc[0] for desc in cur.description]
+                for row in cur.fetchall():
+                    d = dict(zip(cols, row))
+                    out.append(d)
+        return out
+
     def bulk_upsert_users(self, rows: Iterable[Dict[str, Any]]) -> int:
         psycopg = self.psycopg
         count = 0
         with psycopg.connect(self.url) as conn:
             with conn.cursor() as cur:
                 for r in rows:
+                    if "chat_id" not in r:
+                        continue
                     chat_id = int(r.get("chat_id"))
+
+                    # фильтруем ключи под понятные колонкам имена
+                    # (если вдруг в файле были лишние поля — Postgres их не знает)
+                    # Тут допускаем все поля — ALTER уже добавил нужные колонки.
                     cols = list(r.keys())
                     vals = [r[k] for k in cols]
+
                     placeholders = ", ".join(["%s"] * len(vals))
                     columns = ", ".join(cols)
                     updates = ", ".join([f"{k}=EXCLUDED.{k}" for k in cols if k != "chat_id"])
+
                     cur.execute(
                         f"INSERT INTO users ({columns}) VALUES ({placeholders}) "
                         f"ON CONFLICT (chat_id) DO UPDATE SET {updates};",
@@ -135,10 +176,15 @@ def db_init() -> None:
 
 
 def auto_migrate_file_to_db() -> None:
-    # Move users.json into DB if DB is enabled
+    """
+    Если включена БД — забираем всех пользователей из файла и заливаем в Postgres.
+    В Lumi.py это вызывается после db_init().
+    """
     if isinstance(store, DbStore):
         file_store = FileStore()
-        rows = list(file_store.load_users_from_file())
+        rows = list(file_store.load_all())
         if rows:
             inserted = store.bulk_upsert_users(rows)
             print(f">>> migrated {inserted} users from file to DB", flush=True)
+        else:
+            print(">>> no users.json or it is empty — nothing to migrate", flush=True)
