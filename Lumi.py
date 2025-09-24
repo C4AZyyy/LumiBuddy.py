@@ -26,6 +26,7 @@ import requests
 requests.sessions.Session.trust_env = False  # игнорировать прокси из окружения
 
 import telebot
+from flask import Flask, abort, request
 from telebot import types, apihelper
 apihelper.proxy = {"http": None, "https": None}
 from dotenv import load_dotenv
@@ -55,6 +56,8 @@ if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN пуст. Заполни .env")
 
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
+
+app = Flask(__name__)
 
 
 
@@ -1699,12 +1702,9 @@ def start_polling() -> None:
 @app.route(WEBHOOK_PATH, methods=["POST"])
 def telegram_webhook():
     if WEBHOOK_SECRET:
-        from flask import abort, request
         secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
         if secret != WEBHOOK_SECRET:
             abort(403)
-
-    from flask import abort, request
     try:
         # читаем тело целиком как текст (без двойного чтения stream)
         update_json = request.get_data(cache=False, as_text=True)
@@ -1718,12 +1718,50 @@ def telegram_webhook():
     return "ok", 200
 
 
+def start_webhook() -> None:
+    if not WEBHOOK_URL:
+        raise RuntimeError("WEBHOOK_URL не задан — некуда слать обновления")
+    if not WEBHOOK_PORT:
+        raise RuntimeError("WEBHOOK_PORT не задан — некуда слушать обновления")
+
+    try:
+        bot.remove_webhook()
+    except Exception as exc:
+        logging.warning("remove_webhook failed before start_webhook: %r", exc)
+
+    certificate_handle = None
+    certificate_path = WEBHOOK_SSL_CERT if WEBHOOK_SSL_CERT else None
+    if certificate_path and os.path.exists(certificate_path):
+        try:
+            certificate_handle = open(certificate_path, "rb")
+        except OSError as exc:
+            logging.warning("Cannot open SSL certificate %s: %r", certificate_path, exc)
+            certificate_handle = None
+    elif certificate_path:
+        logging.warning("SSL certificate file %s not found", certificate_path)
+
+    webhook_kwargs = {
+        "url": WEBHOOK_URL,
+        "drop_pending_updates": True,
+    }
+    if WEBHOOK_SECRET:
+        webhook_kwargs["secret_token"] = WEBHOOK_SECRET
+
+    try:
+        bot.set_webhook(certificate=certificate_handle, **webhook_kwargs)
+    except Exception as exc:
+        logging.exception("set_webhook failed: %r", exc)
+        raise
+    finally:
+        if certificate_handle:
+            certificate_handle.close()
+
     ssl_context = None
     if WEBHOOK_SSL_CERT and WEBHOOK_SSL_KEY:
         ssl_context = (WEBHOOK_SSL_CERT, WEBHOOK_SSL_KEY)
 
     print(f">>> webhook listening on {WEBHOOK_HOST}:{WEBHOOK_PORT}", flush=True)
-    app.run(host=WEBHOOK_HOST, port=WEBHOOK_PORT, ssl_context=ssl_context)
+    app.run(host=WEBHOOK_HOST, port=WEBHOOK_PORT, ssl_context=ssl_context, use_reloader=False)
 
 # где-нибудь рядом с другими хэндлерами, ВЫШЕ любых общих catch-all
 @bot.message_handler(commands=["ping"])
