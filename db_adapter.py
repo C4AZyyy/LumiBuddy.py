@@ -91,6 +91,7 @@ class DbStore:
                     ALTER TABLE users
                       ADD COLUMN IF NOT EXISTS language                   TEXT,
                       ADD COLUMN IF NOT EXISTS policy_shown               BOOLEAN     DEFAULT FALSE,
+                      ADD COLUMN IF NOT EXISTS lang_confirmed             BOOLEAN     DEFAULT FALSE,
                       ADD COLUMN IF NOT EXISTS accepted_at                TIMESTAMPTZ,
                       ADD COLUMN IF NOT EXISTS free_used                  INTEGER     DEFAULT 0,
                       ADD COLUMN IF NOT EXISTS premium_plan               TEXT,
@@ -131,6 +132,11 @@ class DbStore:
                 cur.execute("ALTER TABLE users ALTER COLUMN news_opt_out SET DEFAULT FALSE;")
                 cur.execute("UPDATE users SET news_opt_out = COALESCE(news_opt_out, FALSE);")
                 cur.execute("ALTER TABLE users ALTER COLUMN news_opt_out DROP NOT NULL;")
+
+                # lang_confirmed: default + backfill + relax nullability
+                cur.execute("ALTER TABLE users ALTER COLUMN lang_confirmed SET DEFAULT FALSE;")
+                cur.execute("UPDATE users SET lang_confirmed = COALESCE(lang_confirmed, FALSE);")
+                cur.execute("ALTER TABLE users ALTER COLUMN lang_confirmed DROP NOT NULL;")
             conn.commit()
 
     def load_all(self) -> List[Dict[str, Any]]:
@@ -159,7 +165,7 @@ class DbStore:
                         r["language"] = default_lang
 
                     # bools: None -> False
-                    for b in ("policy_shown", "offer_prompted", "lyrics_expected", "news_opt_out"):
+                    for b in ("policy_shown", "offer_prompted", "lyrics_expected", "news_opt_out", "lang_confirmed"):
                         if r.get(b) is None:
                             r[b] = False
 
