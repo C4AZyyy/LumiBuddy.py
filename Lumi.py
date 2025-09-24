@@ -837,6 +837,14 @@ def language_preset(code: str) -> Dict[str, object]:
 def db_init():
     store.init_schema()
 
+def main() -> None:
+    print(">>> starting Lumi…", flush=True)
+    db_init()
+    run_db_migrations()     # <= ВАЖНО
+    auto_migrate_file_to_db()
+    ...
+
+
 def load_state() -> None:
     global users
     users = store.load_all()
