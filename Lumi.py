@@ -14,6 +14,7 @@ import logging
 import mimetypes
 import random
 import re
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Pattern
@@ -1714,7 +1715,11 @@ def telegram_webhook():
         logging.exception("Invalid update: %r", exc)
         abort(400)
 
-    bot.process_new_updates([update])
+    threading.Thread(
+        target=lambda upd=update: bot.process_new_updates([upd]),
+        daemon=True,
+    ).start()
+
     return "ok", 200
 
 
@@ -1752,7 +1757,13 @@ def start_webhook() -> None:
         ssl_context = (WEBHOOK_SSL_CERT, WEBHOOK_SSL_KEY)
 
     print(f">>> webhook listening on {WEBHOOK_HOST}:{WEBHOOK_PORT}", flush=True)
-    app.run(host=WEBHOOK_HOST, port=WEBHOOK_PORT, ssl_context=ssl_context, use_reloader=False)
+    app.run(
+        host=WEBHOOK_HOST,
+        port=WEBHOOK_PORT,
+        ssl_context=ssl_context,
+        use_reloader=False,
+        threaded=True,
+    )
 
 # где-нибудь рядом с другими хэндлерами, ВЫШЕ любых общих catch-all
 @bot.message_handler(commands=["ping"])
@@ -2002,18 +2013,15 @@ def cb_language(callback):
 @bot.callback_query_handler(func=lambda c: c.data == "offer:accept")
 def cb_offer_accept(callback):
     chat_id = callback.message.chat.id if callback.message else callback.from_user.id
-    mark_policy_shown(chat_id)
-
     toast = lang_text(chat_id, "policy_accept_toast") or LANGUAGES[DEFAULT_LANGUAGE].get(
         "policy_accept_toast", ""
     )
     try:
-        if toast:
-            bot.answer_callback_query(callback.id, toast)
-        else:
-            bot.answer_callback_query(callback.id)
+        bot.answer_callback_query(callback.id, toast if toast else None)
     except Exception:
         pass
+
+    mark_policy_shown(chat_id)
 
     if callback.message:
         try:
