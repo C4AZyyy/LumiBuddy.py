@@ -1718,43 +1718,34 @@ def telegram_webhook():
     return "ok", 200
 
 
-def start_webhook() -> None:
-    if not WEBHOOK_URL:
-        raise RuntimeError("WEBHOOK_URL не задан — некуда слать обновления")
-    if not WEBHOOK_PORT:
-        raise RuntimeError("WEBHOOK_PORT не задан — некуда слушать обновления")
+@app.route("/health", methods=["GET"])
+def healthcheck():
+    return "ok", 200
 
+
+def start_webhook() -> None:
     try:
         bot.remove_webhook()
     except Exception as exc:
-        logging.warning("remove_webhook failed before start_webhook: %r", exc)
+        logging.warning("remove_webhook failed: %r", exc)
+    time.sleep(1)
 
-    certificate_handle = None
-    certificate_path = WEBHOOK_SSL_CERT if WEBHOOK_SSL_CERT else None
-    if certificate_path and os.path.exists(certificate_path):
-        try:
-            certificate_handle = open(certificate_path, "rb")
-        except OSError as exc:
-            logging.warning("Cannot open SSL certificate %s: %r", certificate_path, exc)
-            certificate_handle = None
-    elif certificate_path:
-        logging.warning("SSL certificate file %s not found", certificate_path)
+    base_url = (WEBHOOK_URL or "").rstrip("/")
+    if not base_url.startswith("http"):
+        raise RuntimeError("WEBHOOK_URL не задан или некорректен (ожидается https://domain)")
 
-    webhook_kwargs = {
-        "url": WEBHOOK_URL,
-        "drop_pending_updates": True,
-    }
-    if WEBHOOK_SECRET:
-        webhook_kwargs["secret_token"] = WEBHOOK_SECRET
+    full_url = base_url + WEBHOOK_PATH
 
     try:
-        bot.set_webhook(certificate=certificate_handle, **webhook_kwargs)
+        ok = bot.set_webhook(
+            url=full_url,
+            secret_token=WEBHOOK_SECRET or None,
+            # drop_pending_updates=True,
+        )
+        print(f">>> webhook set to {full_url} (ok={ok})", flush=True)
     except Exception as exc:
         logging.exception("set_webhook failed: %r", exc)
         raise
-    finally:
-        if certificate_handle:
-            certificate_handle.close()
 
     ssl_context = None
     if WEBHOOK_SSL_CERT and WEBHOOK_SSL_KEY:
