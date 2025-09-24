@@ -16,14 +16,9 @@ class FileStore:
         return False
 
     def init_schema(self) -> None:
-        # No schema for file mode
-        pass
+        pass  # нет схемы для файлового режима
 
     def load_all(self) -> List[Dict[str, Any]]:
-        """
-        Возвращает список словарей пользователей из users.json.
-        Формат ожидается { "<chat_id>": { ... } }.
-        """
         if not os.path.exists(self.path):
             return []
         try:
@@ -44,15 +39,27 @@ class FileStore:
                     row.update(v)
                 out.append(row)
         elif isinstance(data, list):
-            # иногда файл уже в виде списка
             for item in data:
                 if isinstance(item, dict) and "chat_id" in item:
                     out.append(item)
         return out
 
-    # Вспомогательная функция, которой пользуется авто-миграция в нашем коде ниже.
+    # для совместимости со старым кодом миграции
     def load_users_from_file(self) -> Iterable[Dict[str, Any]]:
         return self.load_all()
+
+    # НОВОЕ: сохранить всех пользователей в файл (если где-то вызывается store.save_all)
+    def save_all(self, users: List[Dict[str, Any]]) -> None:
+        data = {}
+        for u in users or []:
+            if "chat_id" not in u:
+                continue
+            cid = str(int(u["chat_id"]))
+            # не пишем chat_id в тело — он ключ
+            data[cid] = {k: v for k, v in u.items() if k != "chat_id"}
+        os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
+        with open(self.path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 # ---------- Postgres store ----------
@@ -69,18 +76,12 @@ class DbStore:
         psycopg = self.psycopg
         with psycopg.connect(self.url) as conn:
             with conn.cursor() as cur:
-                # base table
-                cur.execute(
-                    """
+                cur.execute("""
                     CREATE TABLE IF NOT EXISTS users (
                         chat_id BIGINT PRIMARY KEY
                     );
-                    """
-                )
-
-                # idempotent column adds (safe if they already exist)
-                cur.execute(
-                    """
+                """)
+                cur.execute("""
                     ALTER TABLE users
                       ADD COLUMN IF NOT EXISTS language                   TEXT,
                       ADD COLUMN IF NOT EXISTS policy_shown               BOOLEAN     DEFAULT FALSE,
@@ -92,8 +93,6 @@ class DbStore:
                       ADD COLUMN IF NOT EXISTS news_opt_out               BOOLEAN     DEFAULT FALSE,
                       ADD COLUMN IF NOT EXISTS news_opted_at              TIMESTAMPTZ,
                       ADD COLUMN IF NOT EXISTS history                    JSONB       DEFAULT '[]'::jsonb,
-
-                      -- new fields used by current code
                       ADD COLUMN IF NOT EXISTS offer_prompted             BOOLEAN     NOT NULL DEFAULT FALSE,
                       ADD COLUMN IF NOT EXISTS offer_remind_at            TIMESTAMPTZ NULL,
                       ADD COLUMN IF NOT EXISTS abuse_strikes              INTEGER     NOT NULL DEFAULT 0,
@@ -105,30 +104,23 @@ class DbStore:
                       ADD COLUMN IF NOT EXISTS last_full_name             TEXT        NULL,
                       ADD COLUMN IF NOT EXISTS last_vent_at               TIMESTAMPTZ NULL,
                       ADD COLUMN IF NOT EXISTS last_vent_note             TEXT        NULL,
-
-                      -- payment fields
                       ADD COLUMN IF NOT EXISTS premium_source             TEXT        NULL,
                       ADD COLUMN IF NOT EXISTS premium_started_at         TIMESTAMPTZ NULL,
                       ADD COLUMN IF NOT EXISTS premium_payment_method     TEXT        NULL,
                       ADD COLUMN IF NOT EXISTS premium_payment_reference  TEXT        NULL
-                    ;
-                    """
-                )
+                ;
+                """)
             conn.commit()
 
     def load_all(self) -> List[Dict[str, Any]]:
-        """
-        Возвращает список словарей пользователей из таблицы users.
-        """
         psycopg = self.psycopg
         out: List[Dict[str, Any]] = []
         with psycopg.connect(self.url) as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT * FROM users;")
-                cols = [desc.name if hasattr(desc, "name") else desc[0] for desc in cur.description]
+                cols = [d.name if hasattr(d, "name") else d[0] for d in cur.description]
                 for row in cur.fetchall():
-                    d = dict(zip(cols, row))
-                    out.append(d)
+                    out.append(dict(zip(cols, row)))
         return out
 
     def bulk_upsert_users(self, rows: Iterable[Dict[str, Any]]) -> int:
@@ -139,18 +131,11 @@ class DbStore:
                 for r in rows:
                     if "chat_id" not in r:
                         continue
-                    chat_id = int(r.get("chat_id"))
-
-                    # фильтруем ключи под понятные колонкам имена
-                    # (если вдруг в файле были лишние поля — Postgres их не знает)
-                    # Тут допускаем все поля — ALTER уже добавил нужные колонки.
                     cols = list(r.keys())
                     vals = [r[k] for k in cols]
-
                     placeholders = ", ".join(["%s"] * len(vals))
                     columns = ", ".join(cols)
                     updates = ", ".join([f"{k}=EXCLUDED.{k}" for k in cols if k != "chat_id"])
-
                     cur.execute(
                         f"INSERT INTO users ({columns}) VALUES ({placeholders}) "
                         f"ON CONFLICT (chat_id) DO UPDATE SET {updates};",
@@ -160,6 +145,11 @@ class DbStore:
             conn.commit()
         return count
 
+    # НОВОЕ: совместимость с кодом, который вызывает store.save_all(...)
+    def save_all(self, users: List[Dict[str, Any]]) -> None:
+        # просто апсертим всё в БД
+        self.bulk_upsert_users(users or [])
+
 
 # ---------- factory & helpers ----------
 def get_store():
@@ -167,18 +157,15 @@ def get_store():
         return DbStore(DB_URL)
     return FileStore()
 
-
 store = get_store()
-
 
 def db_init() -> None:
     store.init_schema()
 
-
 def auto_migrate_file_to_db() -> None:
     """
-    Если включена БД — забираем всех пользователей из файла и заливаем в Postgres.
-    В Lumi.py это вызывается после db_init().
+    Если включена БД — читаем всех из файла и апсертим в Postgres.
+    Совместимо с проектами, где load_all/save_all ожидаются у стора.
     """
     if isinstance(store, DbStore):
         file_store = FileStore()
