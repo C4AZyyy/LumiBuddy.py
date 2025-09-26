@@ -906,17 +906,17 @@ def touch_user_profile(message) -> None:
 
 def ensure_ready(message) -> bool:
     chat_id = message.chat.id
-
     touch_user_profile(message)
 
     if not is_language_confirmed(chat_id):
+        logging.info("ensure_ready: lang not confirmed for %s", chat_id)
         send_language_choice(chat_id)
         return False
 
     if not policy_is_shown(chat_id):
+        logging.info("ensure_ready: policy not accepted for %s", chat_id)
         info = U(chat_id)
         now = datetime.now(timezone.utc)
-
         if not info.get("offer_prompted"):
             info["offer_prompted"] = True
             info["offer_remind_at"] = now.isoformat()
@@ -925,7 +925,7 @@ def ensure_ready(message) -> bool:
             send_policy(chat_id)
             return False
 
-        # Короткое напоминание не чаще раза в 2 минуты
+        # напоминание раз в 2 минуты
         remind_ok = True
         last = info.get("offer_remind_at")
         if last:
@@ -937,15 +937,17 @@ def ensure_ready(message) -> bool:
                     remind_ok = False
             except Exception:
                 pass
-
         if remind_ok:
             msg = lang_text_fallback(chat_id, "policy_repeat") or "Чтобы продолжить, нажми «Принимаю» или /accept."
-            bot.send_message(chat_id, msg)
+            kb = types.InlineKeyboardMarkup()
+            kb.add(types.InlineKeyboardButton(lang_text(chat_id, "policy_accept") or "Принимаю", callback_data="offer:accept"))
+            bot.send_message(chat_id, msg, reply_markup=kb)
             info["offer_remind_at"] = now.isoformat()
             save_state()
         return False
 
     return True
+
 
 
 
@@ -1653,7 +1655,6 @@ def send_policy(chat_id: int) -> None:
     text = lang_text(chat_id, "policy")
     chunks = _chunk_text(text)
 
-    # Кнопка "Принимаю"
     kb = types.InlineKeyboardMarkup()
     kb.add(
         types.InlineKeyboardButton(
@@ -1663,26 +1664,32 @@ def send_policy(chat_id: int) -> None:
     )
     lp = types.LinkPreviewOptions(is_disabled=True)
 
+    sent_any = False
     try:
-        # все части без кнопки
+        # отправляем все части БЕЗ кнопки
         for c in chunks[:-1]:
             bot.send_message(chat_id, c, link_preview_options=lp)
-        # последняя часть с кнопкой
+            sent_any = True
+
+        # последняя часть — С ОДНОЙ кнопкой
         last = chunks[-1] if chunks else "—"
         bot.send_message(chat_id, last, reply_markup=kb, link_preview_options=lp)
+        sent_any = True
 
-        # помечаем, что оферта показана (для антиспама напоминаний)
         mark_policy_sent(chat_id)
 
     except Exception as e:
-        logging.exception("send_policy failed, fallback to document: %r", e)
-        # Фолбэк: шлём как документ + отдельно кнопку
+        logging.exception("send_policy: fallback due to %r", e)
+        # Больше НЕ шлём файл и вторую кнопку.
+        # Если что-то уже отправилось — просто короткое напоминание с той же кнопкой.
+        # Если не отправилось ничего — одна короткая подсказка с кнопкой.
+        hint = lang_text_fallback(chat_id, "policy_repeat") or "Чтобы продолжить, нажми «Принимаю» или /accept."
         try:
-            bot.send_document(chat_id, ("offer.txt", text.encode("utf-8")),
-                              caption="Полная оферта во вложении. Для продолжения — нажми «Принимаю».")
-        except Exception:
-            pass
-        bot.send_message(chat_id, lang_text_fallback(chat_id, "policy_repeat") or "Чтобы продолжить, нажми «Принимаю».", reply_markup=kb)
+            bot.send_message(chat_id, hint, reply_markup=kb, link_preview_options=lp)
+            mark_policy_sent(chat_id)
+        except Exception as e2:
+            logging.exception("send_policy: fallback send failed: %r", e2)
+
 
 
 def start_polling() -> None:
@@ -2030,6 +2037,16 @@ def cb_offer_accept(callback):
             pass
 
     bot.send_message(chat_id, lang_text(chat_id, "thank_you"))
+
+@bot.message_handler(func=lambda m: m.content_type == "text" and m.text and m.text.strip().lower() in {"принимаю", "accept"})
+def txt_accept(message):
+    mark_policy_shown(message.chat.id)
+    toast = lang_text(message.chat.id, "policy_accept_toast") or "Условия приняты"
+    try:
+        bot.reply_to(message, toast)
+    except Exception:
+        pass
+    bot.send_message(message.chat.id, lang_text(message.chat.id, "thank_you"))
 
 
 @bot.callback_query_handler(func=lambda c: True)
