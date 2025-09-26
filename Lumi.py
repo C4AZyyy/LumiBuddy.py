@@ -1668,33 +1668,28 @@ def send_policy(chat_id: int) -> None:
             callback_data="offer:accept",
         )
     )
-    lp = types.LinkPreviewOptions(is_disabled=True)
 
-    sent_any = False
     try:
         # отправляем все части БЕЗ кнопки
         for c in chunks[:-1]:
-            bot.send_message(chat_id, c, link_preview_options=lp)
-            sent_any = True
+            bot.send_message(chat_id, c, disable_web_page_preview=True)
 
         # последняя часть — С ОДНОЙ кнопкой
         last = chunks[-1] if chunks else "—"
-        bot.send_message(chat_id, last, reply_markup=kb, link_preview_options=lp)
-        sent_any = True
+        bot.send_message(chat_id, last, reply_markup=kb, disable_web_page_preview=True)
 
         mark_policy_sent(chat_id)
 
     except Exception as e:
-        logging.exception("send_policy: fallback due to %r", e)
-        # Больше НЕ шлём файл и вторую кнопку.
-        # Если что-то уже отправилось — просто короткое напоминание с той же кнопкой.
-        # Если не отправилось ничего — одна короткая подсказка с кнопкой.
+        logging.exception("send_policy failed: %r", e)
+        # супер-короткий фолбэк
         hint = lang_text_fallback(chat_id, "policy_repeat") or "Чтобы продолжить, нажми «Принимаю» или /accept."
         try:
-            bot.send_message(chat_id, hint, reply_markup=kb, link_preview_options=lp)
+            bot.send_message(chat_id, hint, reply_markup=kb, disable_web_page_preview=True)
             mark_policy_sent(chat_id)
         except Exception as e2:
-            logging.exception("send_policy: fallback send failed: %r", e2)
+            logging.exception("send_policy fallback failed: %r", e2)
+
 
 
 
