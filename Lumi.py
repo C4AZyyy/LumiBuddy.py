@@ -1753,8 +1753,10 @@ def start_webhook() -> None:
         ok = bot.set_webhook(
             url=full_url,
             secret_token=WEBHOOK_SECRET or None,
-            # drop_pending_updates=True,
+            drop_pending_updates=True,                 # <— ВАЖНО
+            allowed_updates=["message","callback_query","edited_message"],
         )
+
         print(f">>> webhook set to {full_url} (ok={ok})", flush=True)
     except Exception as exc:
         logging.exception("set_webhook failed: %r", exc)
