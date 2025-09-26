@@ -1073,17 +1073,23 @@ def policy_is_shown(chat_id: int) -> bool:
     ts = info.get("accepted_at")
     if not ts:
         return False
-    try:
-        accepted = datetime.fromisoformat(ts) if isinstance(ts, str) else None
-        if accepted is None:
-            return False
-        if accepted.tzinfo is None:
-            accepted = accepted.replace(tzinfo=timezone.utc)
-    except Exception:
+    accepted: Optional[datetime]
+    if isinstance(ts, datetime):
+        accepted = ts
+    else:
+        try:
+            accepted = datetime.fromisoformat(str(ts)) if isinstance(ts, str) else None
+        except Exception:
+            accepted = None
+
+    if not accepted:
         info["accepted_at"] = None
         info["policy_shown"] = False
         save_state()
         return False
+
+    if accepted.tzinfo is None:
+        accepted = accepted.replace(tzinfo=timezone.utc)
 
     if datetime.now(timezone.utc) - accepted >= timedelta(hours=SESSION_TTL_HOURS):
         info["accepted_at"] = None
