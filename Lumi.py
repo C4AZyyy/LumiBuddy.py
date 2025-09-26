@@ -939,7 +939,7 @@ def ensure_ready(message) -> bool:
                 pass
         if remind_ok:
             msg = lang_text_fallback(chat_id, "policy_repeat") or "Чтобы продолжить, нажми «Принимаю» или /accept."
-            kb = types.InlineKeyboardMarkup()
+            bot.send_message(chat_id, msg)  # без кнопки
             kb.add(types.InlineKeyboardButton(lang_text(chat_id, "policy_accept") or "Принимаю", callback_data="offer:accept"))
             bot.send_message(chat_id, msg, reply_markup=kb)
             info["offer_remind_at"] = now.isoformat()
@@ -2060,11 +2060,30 @@ def cb_fallback(callback):
         pass
 
 
+@bot.message_handler(func=lambda m: m.content_type == "text" and m.text and m.text.strip().lower() in {"да","yes"})
+def txt_yes_accept(message):
+    # Если оферта ещё не принята — считаем «Да/Yes» согласием
+    if not policy_is_shown(message.chat.id):
+        mark_policy_shown(message.chat.id)
+        bot.reply_to(message, lang_text(message.chat.id, "policy_accept_toast") or "Условия приняты")
+        bot.send_message(message.chat.id, lang_text(message.chat.id, "thank_you"))
+    else:
+        # если уже принято — просто не мешаем, дальше отработает any_text
+        pass
+
+
+
+
 @bot.message_handler(content_types=["text"])
 def any_text(message):
+    # авто-локализация при первом тексте
+    if not is_language_confirmed(message.chat.id):
+        set_language(message.chat.id, get_language(message.chat.id))
+        mark_language_confirmed(message.chat.id)
+
     if not ensure_ready(message):
         return
-
+    
     info = U(message.chat.id)
     text = (message.text or "").strip()
     if not text:
